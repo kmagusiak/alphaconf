@@ -1,0 +1,394 @@
+import contextvars
+import logging
+import os
+import sys
+import uuid
+from typing import Any, Dict, Iterable, List, Union
+
+from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
+
+from . import arg_parser
+
+_log = logging.getLogger(__name__)
+
+#######################################
+# APPLICATION
+
+
+class Application:
+    """An application description
+
+    :param properties: Properties of the application, such as:
+        name, version, short_description, description, etc.
+    """
+
+    def __init__(self, **properties) -> None:
+        """Initialize the application.
+
+        Properties:
+        - name: the name of the application (always updated)
+        - verison: version number
+        - description: description shown in help
+        - short_description: shorter description
+
+        :param properties: Properties for the app
+        """
+        self.__config = None  # initialize
+        if not properties.get('name'):
+            properties['name'] = self.__get_default_name()
+        self.properties = properties
+        self._arg_parser = arg_parser.ArgumentParser(properties)
+        arg_parser.add_default_option_handlers(self._arg_parser)
+
+    @staticmethod
+    def __get_default_name() -> str:
+        """Find the default name from sys.argv"""
+        name = os.path.basename(sys.argv[0])
+        if name.endswith('.py'):
+            name = name[:-3]
+        return name
+
+    def _app_configuration(self) -> DictConfig:
+        """Get the application configuration key"""
+        return OmegaConf.create(
+            {
+                'application': {
+                    'name': self.name,
+                    'version': self.properties.get('version'),
+                    'uuid': str(uuid.uuid4()),
+                },
+            }
+        )
+
+    @property
+    def name(self):
+        """Get the name of the application"""
+        return self.properties['name']
+
+    @property
+    def argument_parser(self):
+        """The argument parser instance"""
+        return self._arg_parser
+
+    @property
+    def configuration(self) -> DictConfig:
+        """Get the configuration of the application, initialize if necessary"""
+        if self.__config is None:
+            self.setup_configuration(arguments=None)
+            _log.info('alphaconf initialized')
+            assert self.__config is not None
+        return self.__config
+
+    def get_config(self, key: str = "") -> Any:
+        """Get a configuration value by key
+
+        The value is resolved and a missing exception may be thrown for mandatory arguments.
+
+        :param key: Optional selection key for the configuration
+        :return: The value or None
+        """
+        if key:
+            c = OmegaConf.select(self.configuration, key, throw_on_missing=True)
+        else:
+            c = self.configuration
+        if isinstance(c, DictConfig):
+            c = OmegaConf.to_object(c)
+        return c
+
+    def _get_possible_configuration_paths(self) -> Iterable[str]:
+        """List of paths where to find configuration files"""
+        name = self.name
+        is_windows = sys.platform.startswith('win')
+        for path in [
+            '$APPDATA/{}.yaml' if is_windows else '/etc/{}.yaml',
+            '$LOCALAPPDATA/{}.yaml' if is_windows else '',
+            '$HOME/.{}.yaml',
+            '$HOME/.config/{}.yaml',
+            '$PWD/{}.yaml',
+        ]:
+            path = os.path.expandvars(path.format(name))
+            if path and '$' not in path:
+                yield path
+
+    def _get_configurations(
+        self,
+        env_prefixes: Union[bool, Iterable[str]] = True,
+        load_dotenv: Union[bool, None] = None,
+    ) -> Iterable[DictConfig]:
+        """List of all configurations that can be loaded automatically
+
+        - All of the default configurations
+        - The app configuration
+        - Reads existing files from possible configuration paths
+        - Reads environment variables based on given prefixes
+
+        :param env_prefixes: Prefixes of environment variables to load
+        :param load_dotenv: Whether to load dotenv file
+        :return: OmegaConf configurations (to be merged)
+        """
+        _log.debug('Loading default and app configurations')
+        yield from _DEFAULT_CONFIGURATIONS
+        yield self._app_configuration()
+        # Read files
+        for path in self._get_possible_configuration_paths():
+            if os.path.exists(path):
+                _log.debug('Load configuration from %s', path)
+                yield OmegaConf.load(path)
+        # Environment
+        if load_dotenv is not False:
+            try:
+                import dotenv
+
+                _log.debug('Loading dotenv')
+                dotenv.load_dotenv()
+            except ImportError:
+                if not load_dotenv:
+                    raise
+                _log.debug('dotenv is not installed')
+        if env_prefixes is True:
+            _log.debug('Detecting accepted env prefixes')
+            default_keys = {k for cfg in _DEFAULT_CONFIGURATIONS for k in cfg.keys()}
+            prefixes = tuple(
+                k.upper() + '_'
+                for k in default_keys
+                if k not in ('base', 'python') and not k.startswith('_')
+            )
+        elif isinstance(env_prefixes, Iterable):
+            prefixes = tuple(env_prefixes)
+        else:
+            prefixes = None
+        if prefixes:
+            _log.debug('Loading env configuration from prefixes %s' % (prefixes,))
+            yield OmegaConf.from_dotlist(
+                [
+                    "%s=%s" % (name.lower().replace('_', '.'), value)
+                    for name, value in os.environ.items()
+                    if name.startswith(prefixes)
+                ]
+            )
+
+    def setup_configuration(
+        self,
+        arguments: Union[bool, List[str]] = True,
+        env_prefixes: Union[bool, Iterable[str]] = True,
+        setup_logging: bool = True,
+    ) -> None:
+        """Setup the application configuration
+
+        Can be called only once to setup the configuration and initialize the application.
+        The function may raise ExitApplication.
+
+        :param arguments: The argument list to parse (default: True to parse sys.argv)
+        :param env_prefixes: The env prefixes to load the configuration values from (default: auto)
+        :param setup_logging: Whether to setup logging (default: True)
+        """
+        if self.__config is not None:
+            raise RuntimeError('Configuration already set')
+        _log.debug('Start setup application')
+
+        # Parse arguments
+        parser_result = None
+        if arguments is True:
+            arguments = sys.argv[1:]
+        if arguments is not None:
+            self.argument_parser.reset()
+            self.argument_parser.parse_arguments(arguments)
+            parser_result = self.argument_parser.parse_result
+            _log.debug('Parse arguments result: %s', parser_result)
+
+        # Load and merge configurations
+        configurations = list(self._get_configurations(env_prefixes=env_prefixes))
+        if parser_result:
+            configurations.extend(self.argument_parser.configurations())
+        self.__config = OmegaConf.merge(*configurations)
+        _log.debug('Merged %d configurations', len(configurations))
+
+        # Handle the result
+        if parser_result == 'show_configuration':
+            print(self.yaml_configuration())
+            raise ExitApplication
+        elif parser_result == 'exit':
+            raise ExitApplication
+        elif parser_result is not None and parser_result != 'ok':
+            raise RuntimeError('Invalid argument parsing result: %s' % parser_result)
+
+        # Logging
+        if setup_logging:
+            _log.debug('Setup logging')
+            self._setup_logging()
+
+    def _setup_logging(self) -> None:
+        """Setup logging
+
+        Set the time to GMT, log key 'logging' from configuration or if none, base logging.
+        """
+        import logging
+
+        from . import log_util
+
+        log_util.set_gmt()
+        log = logging.getLogger()
+        logging_config = self.get_config('logging')
+        if logging_config:
+            # Configure using the st configuration
+            import logging.config
+
+            logging.config.dictConfig(logging_config)
+        elif len(log.handlers) == 0:
+            # Default logging if not yet initialized
+            output = logging.StreamHandler()
+            output.setFormatter(log_util.ColorFormatter())
+            log.addHandler(output)
+            log.setLevel(logging.INFO)
+
+    def yaml_configuration(self, mask_base: bool = True) -> str:
+        """Get the configuration as yaml string
+
+        :param mask_base: Whether to mask "base" entry
+        :return: Configuration as string (yaml)
+        """
+        configuration = self.configuration
+        if mask_base:
+            configuration = configuration.copy()
+            configuration['base'] = {
+                key: list(choices.keys()) for key, choices in configuration.base.items()
+            }
+        return OmegaConf.to_yaml(configuration)
+
+    def run(self, main, should_exit=True, **configuration):
+        """Run an application
+
+        :param main: The main function to call
+        :param should_exit: Whether a setup exception should sys.exit (default: True)
+        :param configuration: Arguments passed to setup_configuration()
+        :return: The result of main
+        """
+        try:
+            self.setup_configuration(**configuration)
+        except MissingMandatoryValue as e:
+            _log.error(e)
+            if should_exit:
+                sys.exit(2)
+            raise
+        except ExitApplication:
+            _log.debug('Normal application exit')
+            if should_exit:
+                sys.exit()
+            return
+        # Run the application
+        log = logging.getLogger()
+        token = application.set(self)
+        try:
+            log.info('Application start (%s: %s)', self.name, main.__qualname__)
+            result = main()
+            if result is None:
+                log.info('Application end.')
+            else:
+                log.info('Application end: %s', result)
+            return result
+        except Exception as e:
+            log.error('Application failed: %s', e, exc_info=True)
+            raise
+        finally:
+            application.reset(token)
+
+    def __str__(self) -> str:
+        running = self == application.get()
+        ready = self.__config is not None
+        return f"{type(self).__name__}({self.name}; loaded={ready}; running={running})"
+
+
+class ExitApplication(BaseException):
+    """Signal to exit the application normally"""
+
+    pass
+
+
+#######################################
+# APPLICATION CONTEXT
+
+
+"""The application context"""
+application = contextvars.ContextVar('application')
+_DEFAULT_CONFIGURATIONS = []
+
+
+def configuration() -> DictConfig:
+    """Get the configuration for the current application"""
+    app = application.get()
+    return app.configuration
+
+
+def get(config_key: str) -> Any:
+    """Select a configuration from the current application"""
+    app = application.get()
+    return app.get_config(config_key)
+
+
+def setup_configuration(conf: Union[DictConfig, str, Dict]):
+    """Add a default configuration"""
+    if not isinstance(conf, DictConfig):
+        conf = OmegaConf.create(conf)
+    _DEFAULT_CONFIGURATIONS.append(conf)
+
+
+#######################################
+# BASIC CONFIGURATION
+
+
+def __alpha_configuration():
+    """The default configuration for alphaconf"""
+    logging_default = {
+        'version': 1,
+        'formatters': {
+            'simple': {
+                'format': '%(asctime)s %(levelname)s %(name)s: %(message)s',
+                'datefmt': '%H:%M:%S',
+            },
+            'default': {
+                'format': '%(asctime)s %(levelname)s'
+                ' %(name)s [%(process)s,%(threadName)s]: %(message)s',
+            },
+            'color': {
+                'class': 'alphaconf.log_util.ColorFormatter',
+                'format': '${..default.format}',
+            },
+            'json': {
+                'class': 'alphaconf.log_util.JSONFormatter',
+            },
+        },
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'color',
+                'stream': 'ext://sys.stdout',
+            },
+        },
+        'root': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    }
+    logging_none = {
+        'version': 1,
+        'formatters': {
+            'default': {
+                'format': '%(asctime)s %(levelname)s'
+                ' %(name)s [%(process)s,%(threadName)s]: %(message)s',
+            },
+        },
+        'handlers': {},
+        'root': {
+            'handlers': [],
+            'level': 'INFO',
+        },
+    }
+    conf = {
+        'logging': '${oc.select:base.logging.default}',
+        'base': {'logging': {'default': logging_default, 'none': logging_none}},
+    }
+    setup_configuration(conf)
+
+
+# Initialize configuration
+__alpha_configuration()

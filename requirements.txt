@@ -1,0 +1,10 @@
+# Build tools
+setuptools
+flake8
+black
+
+# Libraries
+omegaconf>=2
+colorama
+python-dotenv
+invoke

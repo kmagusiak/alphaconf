@@ -1,0 +1,4 @@
+logging:
+  root:
+    level: WARNING
+example: config
