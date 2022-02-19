@@ -28,7 +28,7 @@ class OptionHandler:
     def help_arg(self):
         if self._help_arg:
             return self._help_arg
-        return ' | '.join(self.arg)
+        return ', '.join(self.arg)
 
     @help_arg.setter
     def help_arg(self, value):
@@ -175,7 +175,7 @@ class ArgumentParser:
             print(f"{app.get('name')} {app.get('version', '(no-version)')}")
             return
         # Header
-        first_line = f"{app.get('name')} [arguments]"
+        first_line = f"Usage: {app.get('name')} [ options ]"
         description = app.get('description', '')
         short_description = app.get(
             'short_description',
@@ -194,7 +194,7 @@ class ArgumentParser:
             print(description)
         # Options
         print()
-        line_format = '  {arg:28s}  {description}'
+        line_format = '  {arg:32s}  {description}'
         for handler in self._option_handler_list:
             print(line_format.format(arg=handler.help_arg, description=handler.help))
         print(line_format.format(arg='key=value', description="Load a configuration key-value"))
@@ -231,7 +231,7 @@ def add_default_option_handlers(parser: ArgumentParser, *, add_help_version=True
             ['-h', '-?', '--help'],
             lambda _: help(),
             help="Print help message",
-            help_arg='-h | --help',
+            help_arg='-h, --help',
         )
         parser.add_option_handler(
             ['-V', '--version'],
@@ -247,7 +247,7 @@ def add_default_option_handlers(parser: ArgumentParser, *, add_help_version=True
         ['-f', '--config', '--config-file'],
         load_configuration,
         help="Load configuration from file",
-        help_arg='-f | --config[-file] path',
+        help_arg='-f, --config[-file] path',
     )
     parser.add_option_handler(
         ['--select'],

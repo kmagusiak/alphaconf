@@ -43,6 +43,7 @@ class Application:
     @staticmethod
     def __get_default_name() -> str:
         """Find the default name from sys.argv"""
+        # FIXME __main__ when python -m module name
         name = os.path.basename(sys.argv[0])
         if name.endswith('.py'):
             name = name[:-3]
@@ -74,7 +75,9 @@ class Application:
     def configuration(self) -> DictConfig:
         """Get the configuration of the application, initialize if necessary"""
         if self.__config is None:
-            self.setup_configuration(arguments=None)
+            self.setup_configuration(
+                arguments=None, resolve_configuration=False, setup_logging=False
+            )
             _log.info('alphaconf initialized')
             assert self.__config is not None
         return self.__config
@@ -110,10 +113,23 @@ class Application:
             if path and '$' not in path:
                 yield path
 
+    def _load_dotenv(self, load_dotenv: Union[bool, None] = None):
+        """Load dotenv variables (optionally)"""
+        if load_dotenv is False:
+            return
+        try:
+            import dotenv
+
+            _log.debug('Loading dotenv')
+            dotenv.load_dotenv()
+        except ModuleNotFoundError:
+            if not load_dotenv:
+                raise
+            _log.debug('dotenv is not installed')
+
     def _get_configurations(
         self,
         env_prefixes: Union[bool, Iterable[str]] = True,
-        load_dotenv: Union[bool, None] = None,
     ) -> Iterable[DictConfig]:
         """List of all configurations that can be loaded automatically
 
@@ -123,7 +139,6 @@ class Application:
         - Reads environment variables based on given prefixes
 
         :param env_prefixes: Prefixes of environment variables to load
-        :param load_dotenv: Whether to load dotenv file
         :return: OmegaConf configurations (to be merged)
         """
         _log.debug('Loading default and app configurations')
@@ -135,16 +150,6 @@ class Application:
                 _log.debug('Load configuration from %s', path)
                 yield OmegaConf.load(path)
         # Environment
-        if load_dotenv is not False:
-            try:
-                import dotenv
-
-                _log.debug('Loading dotenv')
-                dotenv.load_dotenv()
-            except ImportError:
-                if not load_dotenv:
-                    raise
-                _log.debug('dotenv is not installed')
         if env_prefixes is True:
             _log.debug('Detecting accepted env prefixes')
             default_keys = {k for cfg in _DEFAULT_CONFIGURATIONS for k in cfg.keys()}
@@ -170,7 +175,10 @@ class Application:
     def setup_configuration(
         self,
         arguments: Union[bool, List[str]] = True,
+        *,
+        load_dotenv: Union[bool, None] = None,
         env_prefixes: Union[bool, Iterable[str]] = True,
+        resolve_configuration: bool = True,
         setup_logging: bool = True,
     ) -> None:
         """Setup the application configuration
@@ -179,7 +187,9 @@ class Application:
         The function may raise ExitApplication.
 
         :param arguments: The argument list to parse (default: True to parse sys.argv)
+        :param load_dotenv: Whether to load dotenv environment (default: yes if installed)
         :param env_prefixes: The env prefixes to load the configuration values from (default: auto)
+        :param resolve_configuration: Test whether the configuration can be resolved (default: True)
         :param setup_logging: Whether to setup logging (default: True)
         """
         if self.__config is not None:
@@ -190,13 +200,14 @@ class Application:
         parser_result = None
         if arguments is True:
             arguments = sys.argv[1:]
-        if arguments is not None:
+        if isinstance(arguments, list):
             self.argument_parser.reset()
             self.argument_parser.parse_arguments(arguments)
             parser_result = self.argument_parser.parse_result
             _log.debug('Parse arguments result: %s', parser_result)
 
         # Load and merge configurations
+        self._load_dotenv(load_dotenv=load_dotenv)
         configurations = list(self._get_configurations(env_prefixes=env_prefixes))
         if parser_result:
             configurations.extend(self.argument_parser.configurations())
@@ -212,12 +223,16 @@ class Application:
         elif parser_result is not None and parser_result != 'ok':
             raise RuntimeError('Invalid argument parsing result: %s' % parser_result)
 
+        # Try to get the whole configuration to resolve links
+        if resolve_configuration:
+            self.get_config()
+
         # Logging
         if setup_logging:
             _log.debug('Setup logging')
-            self._setup_logging()
+            self.setup_logging()
 
-    def _setup_logging(self) -> None:
+    def setup_logging(self) -> None:
         """Setup logging
 
         Set the time to GMT, log key 'logging' from configuration or if none, base logging.

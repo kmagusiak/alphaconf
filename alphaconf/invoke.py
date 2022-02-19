@@ -54,4 +54,5 @@ def invoke_application(
         if not current_app:
             application.set(app)
         namespace.configure(app.get_config())
+        app.setup_logging()
     return app
