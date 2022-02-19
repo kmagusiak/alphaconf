@@ -9,6 +9,20 @@ from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
 
 from . import arg_parser
 
+__doc__ = """AlphaConf
+
+Based on omegaconf, provide a simple way to declare and run your application
+while loading the configuration from various files and command line
+arguments.
+
+Use `alphaconf.get()` or `alphaconf.configuration()` to read
+the current application's configuration.
+
+    if __name__ == '__main__':
+        alphaconf.Application().run(main)
+
+"""
+
 _log = logging.getLogger(__name__)
 
 #######################################
@@ -16,7 +30,7 @@ _log = logging.getLogger(__name__)
 
 
 class Application:
-    """An application description
+    """An application configuration description
 
     :param properties: Properties of the application, such as:
         name, version, short_description, description, etc.
@@ -271,7 +285,7 @@ class Application:
         return OmegaConf.to_yaml(configuration)
 
     def run(self, main, should_exit=True, **configuration):
-        """Run an application
+        """Run this application
 
         :param main: The main function to call
         :param should_exit: Whether a setup exception should sys.exit (default: True)

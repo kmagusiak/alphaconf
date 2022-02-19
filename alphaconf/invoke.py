@@ -4,7 +4,7 @@ from . import Application, application, arg_parser
 
 
 class InvokeArgumentParser(arg_parser.ArgumentParser):
-    """Argumentparser for invoke"""
+    """ArgumentParser for invoke, stops after first unrecognized option"""
 
     def handle_option(self, arg: str, value: str):
         try:

@@ -19,6 +19,7 @@ class OptionHandler:
     help: str
 
     def __init__(self, arg: Union[str, List[str]], handler: Callable, help='', help_arg='') -> None:
+        """Initialize option handler"""
         self.arg = arg if isinstance(arg, list) else [arg]
         self.handler = handler
         self.help = help or ''
@@ -26,6 +27,7 @@ class OptionHandler:
 
     @property
     def help_arg(self):
+        """Text for the help line"""
         if self._help_arg:
             return self._help_arg
         return ', '.join(self.arg)
