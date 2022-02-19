@@ -57,10 +57,12 @@ class Application:
     @staticmethod
     def __get_default_name() -> str:
         """Find the default name from sys.argv"""
-        # FIXME __main__ when python -m module name
         name = os.path.basename(sys.argv[0])
         if name.endswith('.py'):
             name = name[:-3]
+        if name == '__main__':
+            # executing a module using python -m
+            name = os.path.basename(os.path.dirname(sys.argv[0]))
         return name
 
     def _app_configuration(self) -> DictConfig:
