@@ -50,7 +50,7 @@ def invoke_application(
         app.run(namespace)
     else:
         # Just configure the namespace and set the application
-        current_app = application.get()
+        current_app = application.get(None)
         if not current_app:
             application.set(app)
         namespace.configure(app.get_config())

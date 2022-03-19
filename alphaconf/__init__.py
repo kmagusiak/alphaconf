@@ -1,3 +1,4 @@
+import contextlib
 import contextvars
 import logging
 import os
@@ -272,6 +273,20 @@ class Application:
             log.addHandler(output)
             log.setLevel(logging.INFO)
 
+    @contextlib.contextmanager
+    def update_configuration(self, conf: Union[DictConfig, Dict]):
+        """Returns a context where the application configuration is merged
+        with a given configuration.
+
+        :param conf: The configuraiton
+        """
+        current_config = self.configuration
+        try:
+            self.__config = OmegaConf.merge(current_config, conf)
+            yield self
+        finally:
+            self.__config = current_config
+
     def yaml_configuration(self, mask_base: bool = True) -> str:
         """Get the configuration as yaml string
 
@@ -318,7 +333,8 @@ class Application:
                 log.info('Application end: %s', result)
             return result
         except Exception as e:
-            log.error('Application failed: %s', e, exc_info=True)
+            # no need to log exc_info beacause the parent will handle it
+            log.error('Application failed: %s', e)
             raise
         finally:
             application.reset(token)

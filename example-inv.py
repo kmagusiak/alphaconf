@@ -6,9 +6,15 @@ import alphaconf.invoke
 
 
 @task
-def doit(ctx):
+def doit(ctx, param=None):
     logging.info('Hello')
-    logging.info('backup %s', alphaconf.configuration().backup)
+    conf = alphaconf.configuration()
+    logging.info('Backup: %s', conf.backup)
+    if param:
+        with alphaconf.application.get().update_configuration({'param': param}):
+            logging.info('Param: [%s] and in alphaconf [%s]', param, alphaconf.get('param'))
+    else:
+        logging.warning('No parameter')
 
 
 ns = Collection(doit)
