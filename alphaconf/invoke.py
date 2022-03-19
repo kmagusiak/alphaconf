@@ -31,13 +31,22 @@ class InvokeApplication(Application):
         prog = invoke.Program(namespace=namespace, binary=self.name)
         return prog
 
-    def run(self, namespace: invoke.collection.Collection, **configuration):
-        # Parse arguments
-        def run_program():
-            argv = [self.name] + self.argument_parser.other_arguments
-            return self._create_program(namespace).run(argv)
+    def _run_program(self):
+        """Run the invoke program"""
+        argv = [self.name] + self.argument_parser.other_arguments
+        return self._create_program(self.namespace).run(argv)
 
-        return super().run(run_program, **configuration)
+    def run_collection(self, namespace: invoke.collection.Collection, **configuration):
+        """Set the namespace and run the program
+
+        :param namespace: The invoke collection to run
+        :param configuration: Configuration arguments
+        """
+        self.namespace = namespace
+        try:
+            return self.run(self._run_program, **configuration)
+        finally:
+            self.namespace = None
 
 
 def invoke_application(
@@ -47,7 +56,7 @@ def invoke_application(
     app = InvokeApplication(**properties)
     if __name__ == '__main__':
         # Let's run the application and parse the arguments
-        app.run(namespace)
+        app.run_collection(namespace)
     else:
         # Just configure the namespace and set the application
         current_app = application.get(None)

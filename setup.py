@@ -15,7 +15,7 @@ setuptools.setup(
     description="Write simple scripts leveraging omegaconf",
     license="MIT",
     keywords="configuration omegaconf script",
-    # url="",
+    url="https://github.com/kmagusiak/alphaconf",
     packages=setuptools.find_packages(),
     long_description=README.read_text(),
     long_description_content_type='text/markdown',

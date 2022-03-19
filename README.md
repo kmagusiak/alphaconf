@@ -1,5 +1,7 @@
 # Alphaconf
 
+[![PyPI version](https://badge.fury.io/py/alphaconf.svg)](https://pypi.org/project/alphaconf/)
+
 A small library to ease writing parameterized scripts.
 The goal is to execute a single script and be able to overwrite the parameters
 easily.
@@ -13,7 +15,7 @@ to launch multiple instances.
 
 ## Demo and application
 
-(DEMO)[demo.ipynb]
+(DEMO)[./demo.ipynb]
 
 To run an application, you need...
 
@@ -50,3 +52,39 @@ when the script is directly called.
     import alphaconf.invoke
     alphaconf.setup_configuration({'backup': 'all'})
     alphaconf.invoke.invoke_application(__name__, ns)
+
+
+## How the configuration is loaded
+
+When running a program, first dotenv is used to load environment variables
+from a `.env` file - this is optional.
+
+Then configuration is built from:
+
+- default configurations defined using (`alphaconf.setup_configuration`)
+- `application` key is generated
+- configuration files from the system (from your HOME and configuration
+  directories)
+- environment variables based on key prefixes,
+  except "BASE" and "PYTHON";
+  if you have a configuration key "abc", all environment variables starting
+  with "ABC_" will be loaded where keys are converted to lower case and "_"
+  to ".": "ABC_HELLO=a" would set "abc.hello=a"
+- key-values from the program arguments
+
+Finally, the configuration is fully resolved once and logging is configured.
+
+## Configuration templates and resolvers
+
+Omegaconf's resolvers may be used as configuration values.
+For example, `${oc.env:USER,me}` would resolve to the environment variable
+USER with a default value "me".
+Similarly, `${oc.select:path}` will resolve to another configuration value.
+
+The select is used to build multiple templates for configurations by providing
+base configurations.
+An argument `--select key=template` is a shortcut for
+`key=${oc.select:base.key.template}`.
+So, `logging: ${oc.select:base.logging.default}` resolves to the configuration
+dict defined in base.logging.default and you can select it using
+`--select logging=default`.
