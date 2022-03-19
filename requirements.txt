@@ -1,7 +1,9 @@
 # Build tools
 setuptools
-flake8
+setuptools_scm
 black
+flake8
+isort
 
 # Libraries
 omegaconf>=2

@@ -28,7 +28,11 @@ setuptools.setup(
     python_requires=">=3.6",
     setup_requires=[
         'flake8',
+        'setuptools_scm',
     ],
+    use_scm_version={
+        "local_scheme": "no-local-version",
+    },
     install_requires=[
         'omegaconf>=2',
     ],
