@@ -106,7 +106,7 @@ class Application:
             assert self.__config is not None
         return self.__config
 
-    def get_config(self, key: str = "") -> Any:
+    def get_config(self, key: str = "", type=None) -> Any:
         """Get a configuration value by key
 
         The value is resolved and a missing exception may be thrown for mandatory arguments.
@@ -120,6 +120,10 @@ class Application:
             c = self.configuration
         if isinstance(c, DictConfig):
             c = OmegaConf.to_object(c)
+        if type and c:
+            from . import arg_type
+
+            c = arg_type.convert_to_type(c, type)
         return c
 
     def _get_possible_configuration_paths(self) -> Iterable[str]:
@@ -385,10 +389,10 @@ def configuration() -> DictConfig:
     return app.configuration
 
 
-def get(config_key: str) -> Any:
+def get(config_key: str, type=None) -> Any:
     """Select a configuration from the current application"""
     app = application.get()
-    return app.get_config(config_key)
+    return app.get_config(config_key, type=type)
 
 
 def setup_configuration(conf: Union[DictConfig, str, Dict]):

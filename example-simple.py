@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import logging
+from pathlib import Path
 
 import alphaconf
 
@@ -10,6 +11,7 @@ alphaconf.setup_configuration(
 server:
   url: http://default
   user: ${oc.env:USER}
+  home: "~"
 """
 )
 
@@ -23,6 +25,7 @@ def main():
     print('app:', alphaconf.configuration().application.name)
     # shortcut version to get a configuration value
     print('server.user:', alphaconf.get('server.user'))
+    print('server.home', alphaconf.get('server.home', Path))
     # log an exception if we have it in the configuration
     if alphaconf.get('exception'):
         try:
