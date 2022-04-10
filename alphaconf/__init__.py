@@ -256,9 +256,9 @@ class Application:
         """
         import logging
 
-        from . import log_util
+        from . import logging_util
 
-        log_util.set_gmt()
+        logging_util.set_gmt()
         log = logging.getLogger()
         logging_config = self.get_config('logging')
         if logging_config:
@@ -269,7 +269,7 @@ class Application:
         elif len(log.handlers) == 0:
             # Default logging if not yet initialized
             output = logging.StreamHandler()
-            output.setFormatter(log_util.ColorFormatter())
+            output.setFormatter(logging_util.ColorFormatter())
             log.addHandler(output)
             log.setLevel(logging.INFO)
 
@@ -397,11 +397,11 @@ def __alpha_configuration():
                 ' %(name)s [%(process)s,%(threadName)s]: %(message)s',
             },
             'color': {
-                'class': 'alphaconf.log_util.ColorFormatter',
+                'class': 'alphaconf.logging_util.ColorFormatter',
                 'format': '${..default.format}',
             },
             'json': {
-                'class': 'alphaconf.log_util.JSONFormatter',
+                'class': 'alphaconf.logging_util.JSONFormatter',
             },
         },
         'handlers': {
@@ -415,6 +415,8 @@ def __alpha_configuration():
             'handlers': ['console'],
             'level': 'INFO',
         },
+        # change the default to keep module-level logging by default
+        'disable_existing_loggers': False,
     }
     logging_none = {
         'version': 1,

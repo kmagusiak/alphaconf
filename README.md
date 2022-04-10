@@ -15,13 +15,13 @@ to launch multiple instances.
 
 ## Demo and application
 
-(DEMO)[./demo.ipynb]
+[DEMO](./demo.ipynb)
 
 To run an application, you need...
 
     import alphaconf
     # each module or application can declare the default configuration they need
-    # it will always be loaded first
+    # it will always be loaded before application startup
     alphaconf.setup_configuration("""
     server:
       url: http://default
