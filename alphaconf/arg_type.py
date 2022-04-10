@@ -5,6 +5,9 @@ TYPE_CONVERTER = {
     datetime.datetime: datetime.datetime.fromisoformat,
     datetime.date: lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(),
     Path: lambda s: Path(s).expanduser(),
+    'read_text': lambda s: Path(s).expanduser().read_text(),
+    'read_strip': lambda s: Path(s).expanduser().read_text().strip(),
+    'read_bytes': lambda s: Path(s).expanduser().read_bytes(),
 }
 
 

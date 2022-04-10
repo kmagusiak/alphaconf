@@ -112,6 +112,7 @@ class Application:
         The value is resolved and a missing exception may be thrown for mandatory arguments.
 
         :param key: Optional selection key for the configuration
+        :param type: Optional type to convert to
         :return: The value or None
         """
         if key:
@@ -120,7 +121,7 @@ class Application:
             c = self.configuration
         if isinstance(c, DictConfig):
             c = OmegaConf.to_object(c)
-        if type and c:
+        if type and c is not None:
             from . import arg_type
 
             c = arg_type.convert_to_type(c, type)

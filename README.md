@@ -34,6 +34,7 @@ To run an application, you need...
         log.info('app name:', alphaconf.configuration().application.name)
         # shortcut to get an option as a dict, str, etc.
         log.info('server.user:', alphaconf.get('server.user'))
+        log.info('has server.user:', alphaconf.get('server.user', bool))
 
     if __name__ == '__main__':
         # run the application
@@ -41,6 +42,13 @@ To run an application, you need...
             name='example',
             version='0.1',
         ).run(main)
+
+## Secrets
+
+When showing the configuration, by default configuration keys which are
+secrets, keys or passwords will be masked.
+Another good practice is to have a file containing the password which
+you can retrieve using `alphaconf.get('secret_file', 'read_strip')`.
 
 ## Invoke integration
 
