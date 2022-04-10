@@ -2,6 +2,7 @@ import contextlib
 import contextvars
 import logging
 import os
+import re
 import sys
 import uuid
 from typing import Any, Dict, Iterable, List, Union
@@ -25,6 +26,12 @@ the current application's configuration.
 """
 
 _log = logging.getLogger(__name__)
+
+"""A list of functions which given a key indicate whether it's a secret"""
+SECRET_MASKS = [
+    # mask if contains a kind of secret and it's not in a file
+    re.compile(r'.*(password|secret|key)(?!_file)(_|$)').match,
+]
 
 #######################################
 # APPLICATION
@@ -287,19 +294,31 @@ class Application:
         finally:
             self.__config = current_config
 
-    def yaml_configuration(self, mask_base: bool = True) -> str:
+    def yaml_configuration(self, mask_base: bool = True, mask_secrets: bool = True) -> str:
         """Get the configuration as yaml string
 
         :param mask_base: Whether to mask "base" entry
         :return: Configuration as string (yaml)
         """
         configuration = self.configuration
-        if mask_base:
+        if mask_base or mask_secrets:
             configuration = configuration.copy()
+        if mask_secrets:
+            configuration = Application.__mask_secrets(configuration)
+        if mask_base:
             configuration['base'] = {
                 key: list(choices.keys()) for key, choices in configuration.base.items()
             }
         return OmegaConf.to_yaml(configuration)
+
+    @staticmethod
+    def __mask_secrets(configuration):
+        for key in list(configuration):
+            if any(mask(key) for mask in SECRET_MASKS):
+                configuration[key] = '*****'
+            elif isinstance(configuration[key], (Dict, DictConfig)):
+                configuration[key] = Application.__mask_secrets(configuration[key])
+        return configuration
 
     def run(self, main, should_exit=True, **configuration):
         """Run this application
