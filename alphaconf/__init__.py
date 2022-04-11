@@ -329,7 +329,7 @@ class Application:
         """Run this application
 
         :param main: The main function to call
-        :param should_exit: Whether a setup exception should sys.exit (default: True)
+        :param should_exit: Whether an exception should sys.exit (default: True)
         :param configuration: Arguments passed to setup_configuration()
         :return: The result of main
         """
@@ -358,7 +358,10 @@ class Application:
             return result
         except Exception as e:
             # no need to log exc_info beacause the parent will handle it
-            log.error('Application failed: %s', e)
+            log.error('Application failed (%s) %s', type(e).__name__, e, exc_info=should_exit)
+            if should_exit:
+                log.debug('Exit application')
+                sys.exit(1)
             raise
         finally:
             application.reset(token)
