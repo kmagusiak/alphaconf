@@ -59,8 +59,10 @@ class Application:
         if not properties.get('name'):
             properties['name'] = self.__get_default_name()
         self.properties = properties
+        # Add argument parser
         self._arg_parser = arg_parser.ArgumentParser(properties)
         arg_parser.add_default_option_handlers(self._arg_parser)
+        self._arg_parser.help_descriptions.update(_DEFAULT_HELPERS)
 
     @staticmethod
     def __get_default_name() -> str:
@@ -385,6 +387,7 @@ class ExitApplication(BaseException):
 """The application context"""
 application = contextvars.ContextVar('application')
 _DEFAULT_CONFIGURATIONS = []
+_DEFAULT_HELPERS = {}
 
 
 def configuration() -> DictConfig:
@@ -399,11 +402,16 @@ def get(config_key: str, type=None) -> Any:
     return app.get_config(config_key, type=type)
 
 
-def setup_configuration(conf: Union[DictConfig, str, Dict]):
+def setup_configuration(conf: Union[DictConfig, str, Dict], helpers={}):
     """Add a default configuration"""
     if not isinstance(conf, DictConfig):
         conf = OmegaConf.create(conf)
     _DEFAULT_CONFIGURATIONS.append(conf)
+    for h_key in helpers:
+        key = h_key.split('.', 1)[0]
+        if key not in conf:
+            raise ValueError('Invalid helper not in configuration [%s]' % key)
+    _DEFAULT_HELPERS.update(helpers)
 
 
 #######################################

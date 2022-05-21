@@ -49,12 +49,14 @@ class ArgumentParser:
     other_arguments: List[str]
     _option_handler_dict: Dict[str, OptionHandler]
     _option_handler_list: List[OptionHandler]
+    help_descriptions: Dict[str, str]
 
     def __init__(self, app_properties: Dict) -> None:
         """Initialze the parser with an application"""
         self.app_properties = app_properties
         self._option_handler_list = []
         self._option_handler_dict = {}
+        self.help_descriptions = {}
         self.reset()
 
     @functools.wraps(OptionHandler.__init__)
@@ -200,6 +202,8 @@ class ArgumentParser:
         for handler in self._option_handler_list:
             print(line_format.format(arg=handler.help_arg, description=handler.help))
         print(line_format.format(arg='key=value', description="Load a configuration key-value"))
+        for name, description in sorted(self.help_descriptions.items()):
+            print(line_format.format(arg=name, description=description))
 
 
 def add_default_option_handlers(parser: ArgumentParser, *, add_help_version=True) -> None:

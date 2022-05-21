@@ -12,7 +12,8 @@ server:
   url: http://default
   user: ${oc.env:USER}
   home: "~"
-"""
+""",
+    {"server": "Contains the arguments for the demo"},
 )
 
 
