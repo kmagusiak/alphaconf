@@ -33,6 +33,13 @@ SECRET_MASKS = [
     re.compile(r'.*(password|secret|key)(?!_file)(_|$)').match,
 ]
 
+"""Map of default values"""
+_DEFAULTS = {
+    'configurations': [],
+    'helpers': {},
+    'testing_configurations': [],
+}
+
 #######################################
 # APPLICATION
 
@@ -62,7 +69,7 @@ class Application:
         # Add argument parser
         self._arg_parser = arg_parser.ArgumentParser(properties)
         arg_parser.add_default_option_handlers(self._arg_parser)
-        self._arg_parser.help_descriptions.update(_DEFAULT_HELPERS)
+        self._arg_parser.help_descriptions.update(_DEFAULTS['helpers'])
 
     @staticmethod
     def __get_default_name() -> str:
@@ -173,7 +180,8 @@ class Application:
         :return: OmegaConf configurations (to be merged)
         """
         _log.debug('Loading default and app configurations')
-        yield from _DEFAULT_CONFIGURATIONS
+        yield from _DEFAULTS['configurations']
+        yield from _DEFAULTS['testing_configurations']
         yield self._app_configuration()
         # Read files
         for path in self._get_possible_configuration_paths():
@@ -183,7 +191,7 @@ class Application:
         # Environment
         if env_prefixes is True:
             _log.debug('Detecting accepted env prefixes')
-            default_keys = {k for cfg in _DEFAULT_CONFIGURATIONS for k in cfg.keys()}
+            default_keys = {k for cfg in _DEFAULTS['configurations'] for k in cfg.keys()}
             prefixes = tuple(
                 k.upper() + '_'
                 for k in default_keys
@@ -348,8 +356,11 @@ class Application:
             if should_exit:
                 sys.exit()
             return
-        # Run the application
         log = logging.getLogger()
+        if _DEFAULTS['testing_configurations']:
+            log.info('Application testing (%s: %s)', self.name, main.__qualname__)
+            return None
+        # Run the application
         token = application.set(self)
         try:
             log.info('Application start (%s: %s)', self.name, main.__qualname__)
@@ -387,8 +398,6 @@ class ExitApplication(BaseException):
 
 """The application context"""
 application = contextvars.ContextVar('application')
-_DEFAULT_CONFIGURATIONS = []
-_DEFAULT_HELPERS = {}
 
 
 def configuration() -> DictConfig:
@@ -403,16 +412,28 @@ def get(config_key: str, type=None) -> Any:
     return app.get_config(config_key, type=type)
 
 
-def setup_configuration(conf: Union[DictConfig, str, Dict], helpers: Dict[str, str] = {}):
-    """Add a default configuration"""
+def setup_configuration(
+    conf: Union[DictConfig, str, Dict], helpers: Dict[str, str] = {}, testing: bool = None
+):
+    """Add a default configuration
+
+    :param conf: The configuration to add
+    :param helpers: Description of parameters used in argument parser helpers
+    :param testing: If set, True adds the configuration to testing configurations,
+                    if False, the testing configurations are cleared
+    """
     if not isinstance(conf, DictConfig):
         conf = OmegaConf.create(conf)
-    _DEFAULT_CONFIGURATIONS.append(conf)
+    if testing is False:
+        _DEFAULTS['testing_configurations'].clear()
+    config_key = 'testing_configurations' if testing else 'configurations'
+    _DEFAULTS[config_key].append(conf)
+    # setup helpers
     for h_key in helpers:
         key = h_key.split('.', 1)[0]
         if key not in conf:
             raise ValueError('Invalid helper not in configuration [%s]' % key)
-    _DEFAULT_HELPERS.update(helpers)
+    _DEFAULTS['helpers'].update(helpers)
 
 
 #######################################
