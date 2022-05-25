@@ -5,7 +5,7 @@ import os
 import re
 import sys
 import uuid
-from typing import Any, Dict, Iterable, List, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
 
@@ -151,7 +151,7 @@ class Application:
             if path and '$' not in path:
                 yield path
 
-    def _load_dotenv(self, load_dotenv: Union[bool, None] = None):
+    def _load_dotenv(self, load_dotenv: Optional[bool] = None):
         """Load dotenv variables (optionally)"""
         if load_dotenv is False:
             return
@@ -215,7 +215,7 @@ class Application:
         self,
         arguments: Union[bool, List[str]] = True,
         *,
-        load_dotenv: Union[bool, None] = None,
+        load_dotenv: Optional[bool] = None,
         env_prefixes: Union[bool, Iterable[str]] = True,
         resolve_configuration: bool = True,
         setup_logging: bool = True,
@@ -413,7 +413,9 @@ def get(config_key: str, type=None) -> Any:
 
 
 def setup_configuration(
-    conf: Union[DictConfig, str, Dict], helpers: Dict[str, str] = {}, testing: bool = None
+    conf: Union[DictConfig, str, Dict],
+    helpers: Dict[str, str] = {},
+    testing: Optional[bool] = None,
 ):
     """Add a default configuration
 
