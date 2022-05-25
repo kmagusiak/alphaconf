@@ -327,16 +327,17 @@ class Application:
                 configuration[key] = Application.__mask_secrets(configuration[key])
         return configuration
 
-    def run(self, main, should_exit=True, **configuration):
+    def run(self, main, arguments=True, *, should_exit=True, **configuration):
         """Run this application
 
         :param main: The main function to call
+        :param arguments: List of arguments (default: True to read sys.argv)
         :param should_exit: Whether an exception should sys.exit (default: True)
         :param configuration: Arguments passed to setup_configuration()
         :return: The result of main
         """
         try:
-            self.setup_configuration(**configuration)
+            self.setup_configuration(arguments, **configuration)
         except MissingMandatoryValue as e:
             _log.error(e)
             if should_exit:
@@ -402,7 +403,7 @@ def get(config_key: str, type=None) -> Any:
     return app.get_config(config_key, type=type)
 
 
-def setup_configuration(conf: Union[DictConfig, str, Dict], helpers={}):
+def setup_configuration(conf: Union[DictConfig, str, Dict], helpers: Dict[str, str] = {}):
     """Add a default configuration"""
     if not isinstance(conf, DictConfig):
         conf = OmegaConf.create(conf)
