@@ -161,7 +161,7 @@ class Application:
             _log.debug('Loading dotenv')
             dotenv.load_dotenv()
         except ModuleNotFoundError:
-            if not load_dotenv:
+            if load_dotenv:
                 raise
             _log.debug('dotenv is not installed')
 
