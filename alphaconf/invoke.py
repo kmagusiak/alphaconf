@@ -9,7 +9,7 @@ class InvokeArgumentParser(arg_parser.ArgumentParser):
     def handle_option(self, arg: str, value: str):
         try:
             return super().handle_option(arg, value)
-        except arg_parser.InvalidArgumentError:
+        except arg_parser.InvalidArgumentError:  # TODO rebuild this file
             # stop parsing on first unrecognized value
             return 'stop'
 

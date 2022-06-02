@@ -56,7 +56,7 @@ class Application:
 
         Properties:
         - name: the name of the application (always updated)
-        - verison: version number
+        - version: version number
         - description: description shown in help
         - short_description: shorter description
 
@@ -68,8 +68,8 @@ class Application:
         self.properties = properties
         # Add argument parser
         self._arg_parser = arg_parser.ArgumentParser(properties)
-        arg_parser.add_default_option_handlers(self._arg_parser)
-        self._arg_parser.help_descriptions.update(_DEFAULTS['helpers'])
+        for name, help in _DEFAULTS['helpers'].items():
+            self._arg_parser.add_config_help(name, help)
 
     @staticmethod
     def __get_default_name() -> str:
