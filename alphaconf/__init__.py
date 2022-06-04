@@ -56,7 +56,7 @@ class Application:
 
         Properties:
         - name: the name of the application (always updated)
-        - verison: version number
+        - version: version number
         - description: description shown in help
         - short_description: shorter description
 
