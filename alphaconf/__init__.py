@@ -329,7 +329,7 @@ class Application:
     @staticmethod
     def __mask_secrets(configuration):
         for key in list(configuration):
-            if any(mask(key) for mask in SECRET_MASKS):
+            if isinstance(key, str) and any(mask(key) for mask in SECRET_MASKS):
                 configuration[key] = '*****'
             elif isinstance(configuration[key], (Dict, DictConfig)):
                 configuration[key] = Application.__mask_secrets(configuration[key])
@@ -436,6 +436,17 @@ def setup_configuration(
         if key not in conf:
             raise ValueError('Invalid helper not in configuration [%s]' % key)
     _DEFAULTS['helpers'].update(helpers)
+
+
+def check_application():
+    """Check if an application is set up and set it up if it's not"""
+    try:
+        application.get()
+    except LookupError:
+        return
+    app = Application()
+    application.set(app)
+    app.setup_configuration(arguments=False, resolve_configuration=False)
 
 
 #######################################
