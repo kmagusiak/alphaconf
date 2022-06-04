@@ -3,18 +3,9 @@ import invoke
 from . import Application, application, arg_parser
 
 
-class InvokeArgumentParser(arg_parser.ArgumentParser):
-    """ArgumentParser for invoke, stops after first unrecognized option"""
-
-    def handle_option(self, arg: str, value: str):
-        try:
-            return super().handle_option(arg, value)
-        except arg_parser.InvalidArgumentError:  # TODO rebuild this file
-            # stop parsing on first unrecognized value
-            return 'stop'
-
-    def handle_other_arguments(self):
-        return  # do nothing, they will be used by the application
+class InvokeAction(arg_parser.Action):
+    def handle(self, result, value):
+        return 'stop'  # TODO add
 
 
 class InvokeApplication(Application):
@@ -22,8 +13,7 @@ class InvokeApplication(Application):
 
     def __init__(self, **properties) -> None:
         super().__init__(**properties)
-        self._arg_parser = InvokeArgumentParser(self._arg_parser.app_properties)
-        arg_parser.add_default_option_handlers(self._arg_parser, add_help_version=False)
+        self.argument_parser.add_argument(InvokeAction)
 
     def _create_program(self, namespace: invoke.collection.Collection):
         """Create the invoke program"""
@@ -33,7 +23,7 @@ class InvokeApplication(Application):
 
     def _run_program(self):
         """Run the invoke program"""
-        argv = [self.name] + self.argument_parser.other_arguments
+        argv = [self.name] + self.parsed.rest
         return self._create_program(self.namespace).run(argv)
 
     def run_collection(self, namespace: invoke.collection.Collection, **configuration):
