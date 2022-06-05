@@ -3,6 +3,7 @@ import json
 import logging
 import traceback
 from logging import Formatter, LogRecord
+from typing import Any
 
 try:
     import colorama
@@ -50,7 +51,7 @@ class JSONFormatter(Formatter):
     """Format the log message as a single-line JSON dict"""
 
     def format(self, record: LogRecord) -> str:
-        d = collections.OrderedDict()
+        d: collections.OrderedDict[str, Any] = collections.OrderedDict()
         if self.usesTime():
             d['time'] = self.formatTime(record, self.datefmt)
         d['level'] = record.levelname

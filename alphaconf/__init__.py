@@ -5,7 +5,7 @@ import os
 import re
 import sys
 import uuid
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
 
@@ -34,7 +34,7 @@ SECRET_MASKS = [
 ]
 
 """Map of default values"""
-_DEFAULTS = {
+_DEFAULTS: Dict[str, Any] = {
     'configurations': [],
     'helpers': {},
     'testing_configurations': [],
@@ -50,6 +50,8 @@ class Application:
     :param properties: Properties of the application, such as:
         name, version, short_description, description, etc.
     """
+
+    __config: Optional[DictConfig]
 
     def __init__(self, **properties) -> None:
         """Initialize the application.
@@ -109,7 +111,7 @@ class Application:
         """Get the configuration of the application, initialize if necessary"""
         if self.__config is None:
             self.setup_configuration(
-                arguments=None, resolve_configuration=False, setup_logging=False
+                arguments=False, resolve_configuration=False, setup_logging=False
             )
             _log.info('alphaconf initialized')
             assert self.__config is not None
@@ -187,8 +189,13 @@ class Application:
         for path in self._get_possible_configuration_paths():
             if os.path.exists(path):
                 _log.debug('Load configuration from %s', path)
-                yield OmegaConf.load(path)
+                conf = OmegaConf.load(path)
+                if isinstance(conf, DictConfig):
+                    yield conf
+                else:
+                    yield from conf
         # Environment
+        prefixes: Optional[Tuple[str, ...]]
         if env_prefixes is True:
             _log.debug('Detecting accepted env prefixes')
             default_keys = {k for cfg in _DEFAULTS['configurations'] for k in cfg.keys()}
@@ -247,7 +254,7 @@ class Application:
         configurations = list(self._get_configurations(env_prefixes=env_prefixes))
         if self.parsed:
             configurations.extend(self.parsed.configurations())
-        self.__config = OmegaConf.merge(*configurations)
+        self.__config = cast(DictConfig, OmegaConf.merge(*configurations))
         _log.debug('Merged %d configurations', len(configurations))
 
         # Handle the result
@@ -303,7 +310,7 @@ class Application:
         """
         current_config = self.configuration
         try:
-            self.__config = OmegaConf.merge(current_config, conf)
+            self.__config = cast(DictConfig, OmegaConf.merge(current_config, conf))
             yield self
         finally:
             self.__config = current_config
@@ -413,7 +420,7 @@ class Application:
 
 
 """The application context"""
-application = contextvars.ContextVar('application')
+application: contextvars.ContextVar[Application] = contextvars.ContextVar('application')
 
 
 def configuration() -> DictConfig:
@@ -440,16 +447,18 @@ def setup_configuration(
     :param testing: If set, True adds the configuration to testing configurations,
                     if False, the testing configurations are cleared
     """
-    if not isinstance(conf, DictConfig):
-        conf = OmegaConf.create(conf)
+    if isinstance(conf, DictConfig):
+        config = conf
+    else:
+        config = cast(DictConfig, OmegaConf.create(conf))
     if testing is False:
         _DEFAULTS['testing_configurations'].clear()
     config_key = 'testing_configurations' if testing else 'configurations'
-    _DEFAULTS[config_key].append(conf)
+    _DEFAULTS[config_key].append(config)
     # setup helpers
     for h_key in helpers:
         key = h_key.split('.', 1)[0]
-        if key not in conf:
+        if key not in config:
             raise ValueError('Invalid helper not in configuration [%s]' % key)
     _DEFAULTS['helpers'].update(helpers)
 

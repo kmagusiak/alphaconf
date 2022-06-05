@@ -1,5 +1,5 @@
 import itertools
-from typing import Dict, Iterable, List, Union
+from typing import Dict, Iterable, List, Optional, Union, cast
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -122,6 +122,10 @@ class ConfigurationSelectAction(ConfigurationAction):
 class ParseResult:
     """The result of argument parsing"""
 
+    result: Optional[Action]
+    rest: List[str]
+    _config: List[Union[str, DictConfig]]
+
     def __init__(self) -> None:
         """Initialize the result"""
         self.result = None
@@ -150,9 +154,9 @@ class ParseResult:
             return
         for typ, conf in itertools.groupby(configuration_list, type):
             if issubclass(typ, DictConfig):
-                yield from conf
+                yield from cast(Iterable[DictConfig], conf)
             else:
-                yield OmegaConf.from_dotlist(list(conf))
+                yield OmegaConf.from_dotlist(list(cast(Iterable[str], conf)))
 
     def __repr__(self) -> str:
         return f"(result={self.result}, config={self._config}, rest={self.rest})"
@@ -160,6 +164,10 @@ class ParseResult:
 
 class ArgumentParser:
     """Parses arguments for alphaconf"""
+
+    _opt_actions: Dict[str, Action]
+    _pos_actions: List[Action]
+    help_messages: Dict[str, str]
 
     def __init__(self) -> None:
         self._opt_actions = {}
@@ -201,7 +209,7 @@ class ArgumentParser:
                 # parse positional arguments
                 if value is None:
                     value = arg
-                arg = None
+                arg = None  # type: ignore
                 action_result = f"Unrecognized argument: {value}"
                 for action in self._pos_actions:
                     if not action.check_argument(value):

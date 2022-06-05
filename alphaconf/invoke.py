@@ -61,5 +61,5 @@ def invoke_application(
         # Just configure the namespace and set the application
         application.set(app)
         namespace.configure(app.get_config())
-        app.setup_logging()
+        app.setup_configuration(arguments=False, load_dotenv=False, setup_logging=True)
     return app

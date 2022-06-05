@@ -25,4 +25,5 @@ esac
 flake8
 black --check .
 isort --check-only .
+mypy .
 echo "All good to commit"
