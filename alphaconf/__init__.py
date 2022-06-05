@@ -463,16 +463,6 @@ def setup_configuration(
     _DEFAULTS['helpers'].update(helpers)
 
 
-def check_application():
-    """Check if an application is set up and set it up if it's not"""
-    app = application.get(None)
-    if app is not None:
-        return
-    app = Application()
-    application.set(app)
-    app.setup_configuration(arguments=False, resolve_configuration=False)
-
-
 #######################################
 # BASIC CONFIGURATION
 
