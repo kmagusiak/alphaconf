@@ -5,7 +5,8 @@ from . import Application, application, arg_parser
 
 class InvokeAction(arg_parser.Action):
     def handle(self, result, value):
-        return 'stop'  # TODO add
+        result.rest.append(value)
+        return 'stop'
 
 
 class InvokeApplication(Application):
@@ -13,7 +14,16 @@ class InvokeApplication(Application):
 
     def __init__(self, **properties) -> None:
         super().__init__(**properties)
-        self.argument_parser.add_argument(InvokeAction)
+        self.argument_parser.add_argument(
+            InvokeAction,
+            metavar="invoke arguments",
+            help="Rest is passed to invoke",
+        )
+
+    def _handle_result(self):
+        if self.parsed.result:
+            return self.parsed.result.run(self)
+        return None
 
     def _create_program(self, namespace: invoke.collection.Collection):
         """Create the invoke program"""
@@ -49,9 +59,7 @@ def invoke_application(
         app.run_collection(namespace)
     else:
         # Just configure the namespace and set the application
-        current_app = application.get(None)
-        if not current_app:
-            application.set(app)
+        application.set(app)
         namespace.configure(app.get_config())
         app.setup_logging()
     return app

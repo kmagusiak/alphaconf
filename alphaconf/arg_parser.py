@@ -18,7 +18,12 @@ class ExitApplication(BaseException):
 
 
 class ArgumentError(RuntimeError):
-    pass
+    """Argument parsing error"""
+
+    def __init__(self, message: str, *args: object, arg=None) -> None:
+        if arg:
+            message = f"{arg}: {message}"
+        super().__init__(message, *args)
 
 
 class Action:
@@ -35,8 +40,10 @@ class Action:
         return None
 
     def handle(self, result, value):
+        if result.result:
+            return "Result is already set"
         result.result = self
-        return 'stop'  # XXX raise StopIteration
+        return 'stop'
 
     def run(self, app):
         raise ArgumentError(f"Cannot execute action {self}")
@@ -63,6 +70,7 @@ class HelpAction(Action):
 
 class VersionAction(Action):
     """Version action"""
+
     def run(self, app):
         p = app.properties
         prog = p.get('name')
@@ -120,7 +128,7 @@ class ParseResult:
         self.rest = []
         self._config = []
 
-    def _add_config(self, value: Union[List, DictConfig, Dict, str]):
+    def _add_config(self, value: Union[List[str], DictConfig, Dict, str]):
         """Add a configuration item"""
         if isinstance(value, list):
             self._config.extend(value)
@@ -132,7 +140,7 @@ class ParseResult:
         elif isinstance(value, str):
             pass
         else:
-            raise ArgumentError(f"Invalid configuration loaded {type(value)}")
+            raise ArgumentError(f"Invalid configuration type {type(value)}")
         self._config.append(value)
 
     def configurations(self) -> Iterable[DictConfig]:
@@ -158,20 +166,12 @@ class ArgumentParser:
         self._pos_actions = []
         self.help_messages = {}
 
-    def _result_handle(self, result):
-        if result == 'stop':
-            return
-        if result:
-            raise ArgumentError(result)
-
-    def parse_args(self, arguments):
+    def parse_args(self, arguments: List[str]) -> ParseResult:
+        """Parse the argument"""
         result = ParseResult()
         arguments = list(arguments)
         arguments.reverse()
-        action_result = None
         while arguments:
-            if action_result == 'stop':
-                break
             arg = arguments.pop()
             if arg == '--':
                 break
@@ -181,36 +181,48 @@ class ArgumentParser:
                 # arg is -xxx=yyy, split it
                 arg, value = _split(arg)
                 if not arg.startswith('--') and len(arg) != 2:
-                    raise ArgumentError("Short option must be alone with a value")
-            # parse option arguments
-            action = self._opt_actions.get(arg)
-            if is_opt and not action:
-                raise ArgumentError('Unrecognized option')
-            if action:
+                    raise ArgumentError("Short option must be alone with a value", arg=arg)
+            if is_opt:
+                # parse option arguments
+                action = self._opt_actions.get(arg)
+                if not action:
+                    raise ArgumentError('Unrecognized option', arg=arg)
                 if value is None and action.has_arg:
                     if not arguments:
-                        raise ArgumentError("No more arguments to read a value")
+                        raise ArgumentError(f"No more arguments to read {action.metavar}", arg=arg)
                     arg = arguments.pop()
                 elif value is not None and not action.has_arg:
-                    raise ArgumentError("Action has no arguments")
-                self._result_handle(action.check_argument(value))
-                action_result = self._result_handle(action.handle(result, value))
-                continue
-            # parse positional arguments
-            if value is None:
-                value = arg
-            action_result = 'Unrecognized argument'
-            for action in self._pos_actions:
-                if not action.check_argument(value):
-                    action_result = action.handle(result, value)
-                    break
-            self._result_handle(action_result)
+                    raise ArgumentError("Action has no arguments", arg=arg)
+                error = action.check_argument(value)
+                if error:
+                    raise ArgumentError(error, arg=arg)
+                action_result = action.handle(result, value)
+            else:
+                # parse positional arguments
+                if value is None:
+                    value = arg
+                arg = None
+                action_result = f"Unrecognized argument: {value}"
+                for action in self._pos_actions:
+                    if not action.check_argument(value):
+                        action_result = action.handle(result, value)
+                        break
+            # check result
+            if action_result == 'stop':
+                break
+            if action_result:
+                raise ArgumentError(action_result, arg=arg)
         # set the rest of the arguments
         arguments.reverse()
-        result.rest = arguments
+        result.rest += arguments
         return result
 
     def add_argument(self, action_class, *names, **kw):
+        """Add an argument handler
+
+        :param action_class: Action(kw) will be added as a handler
+        :param names: Option or positional argument name
+        """
         action = action_class(**kw)
         is_opt = False
         for name in names:
@@ -220,15 +232,15 @@ class ArgumentParser:
             is_opt = True
         if not is_opt:
             if 'metavar' not in kw:
-                raise ArgumentError('Missing metavar for action')
+                raise ArgumentError(f"Missing metavar for action {action}")
             self._pos_actions.append(action)
 
-    def add_help(self, name, help):
-        self.help_messages[name] = help
-
     def print_help(self):
+        """Print the help"""
         lines = []
+        tpl = "  {:<27} {}"
         if self._opt_actions:
+            lines.append('options:')
             visited = set()
             for action in self._opt_actions.values():
                 if action in visited:
@@ -238,21 +250,20 @@ class ArgumentParser:
                 option_line = ', '.join(opts)
                 if action.metavar:
                     option_line += ' ' + action.metavar
-                if len(option_line) > 30:
-                    lines.append(option_line)
-                    lines.append(action.help)
+                if len(option_line) > 27:
+                    lines.append(tpl.format(option_line, ''))
+                    if action.help:
+                        lines.append((30 * ' ') + action.help)
                 else:
-                    # TODO
-                    lines.append(option_line + ' ' + action.help)
+                    lines.append(tpl.format(option_line, action.help or ''))
             lines.append('')
         if self._pos_actions:
+            lines.append('positional arguments:')
             for action in self._pos_actions:
-                lines.append(action.help)
-            lines.append('')
+                lines.append(tpl.format(action.metavar or '', action.help or ''))
         if self.help_messages:
             for name, help in self.help_messages.items():
-                lines.append("%s   %s" % (name, help))
-            lines.append('')
+                lines.append(tpl.format(name, help))
         print(*lines, sep='\n')
 
 
@@ -265,7 +276,8 @@ def configure_parser(parser: ArgumentParser, *, app=None):
     )
     parser.add_argument(
         HelpAction,
-        '-h', '--help',
+        '-h',
+        '--help',
         help="Show the help",
     )
     if app and app.properties.get('version'):

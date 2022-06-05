@@ -74,8 +74,7 @@ class Application:
         self.argument_parser = arg_parser.ArgumentParser()
         parser = self.argument_parser
         arg_parser.configure_parser(parser, app=self)
-        for name, help in _DEFAULTS['helpers'].items():
-            parser.add_help(name, help)
+        parser.help_messages.update(_DEFAULTS['helpers'])
 
     @staticmethod
     def __get_default_name() -> str:
@@ -244,7 +243,6 @@ class Application:
         self.parsed = self.argument_parser.parse_args(arguments)
 
         # Load and merge configurations
-        print(self.parsed)  # XXX remove
         self._load_dotenv(load_dotenv=load_dotenv)
         configurations = list(self._get_configurations(env_prefixes=env_prefixes))
         if self.parsed:
@@ -262,7 +260,7 @@ class Application:
         # Logging
         if setup_logging:
             _log.debug('Setup logging')
-            self.setup_logging()
+            self._setup_logging()
 
     def _handle_result(self):
         """Handle result that is in self.parsed"""
@@ -272,7 +270,7 @@ class Application:
             raise arg_parser.ArgumentError(f"Too many arguments {self.parsed.rest}")
         return None
 
-    def setup_logging(self) -> None:
+    def _setup_logging(self) -> None:
         """Setup logging
 
         Set the time to GMT, log key 'logging' from configuration or if none, base logging.
@@ -330,13 +328,15 @@ class Application:
     @staticmethod
     def __mask_secrets(configuration):
         for key in list(configuration):
-            if any(mask(key) for mask in SECRET_MASKS):
+            if isinstance(key, str) and any(mask(key) for mask in SECRET_MASKS):
                 configuration[key] = '*****'
             elif isinstance(configuration[key], (Dict, DictConfig)):
                 configuration[key] = Application.__mask_secrets(configuration[key])
         return configuration
 
     def print_help(self, *, usage=None, description=None, arguments=True):
+        """Print the help message
+        Set the arguments to False to disable printing them."""
         p = self.properties
         if usage is None:
             usage = f"usage: {p.get('name') or 'app'}"
@@ -364,6 +364,11 @@ class Application:
         try:
             self.setup_configuration(arguments, **configuration)
         except MissingMandatoryValue as e:
+            _log.error(e)
+            if should_exit:
+                sys.exit(99)
+            raise
+        except arg_parser.ArgumentError as e:
             _log.error(e)
             if should_exit:
                 sys.exit(2)
@@ -447,6 +452,16 @@ def setup_configuration(
         if key not in conf:
             raise ValueError('Invalid helper not in configuration [%s]' % key)
     _DEFAULTS['helpers'].update(helpers)
+
+
+def check_application():
+    """Check if an application is set up and set it up if it's not"""
+    app = application.get(None)
+    if app is not None:
+        return
+    app = Application()
+    application.set(app)
+    app.setup_configuration(arguments=False, resolve_configuration=False)
 
 
 #######################################
