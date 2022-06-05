@@ -1,263 +1,309 @@
-import functools
 import itertools
-from typing import Callable, Dict, Iterable, List, Union
+from typing import Dict, Iterable, List, Union
 
-from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
+from omegaconf import DictConfig, OmegaConf
 
 
-class InvalidArgumentError(Exception):
-    """Invalid argument on command line"""
+def _split(value, char="="):
+    vs = value.split(char, 1)
+    if len(vs) < 2:
+        vs.append(None)
+    return vs
+
+
+class ExitApplication(BaseException):
+    """Signal to exit the application normally"""
 
     pass
 
 
-class OptionHandler:
-    """Handling an option"""
+class ArgumentError(RuntimeError):
+    """Argument parsing error"""
 
-    arg: List[str]
-    handler: Callable
-    help: str
-
-    def __init__(self, arg: Union[str, List[str]], handler: Callable, help='', help_arg='') -> None:
-        """Initialize option handler"""
-        self.arg = arg if isinstance(arg, list) else [arg]
-        self.handler = handler
-        self.help = help or ''
-        self._help_arg = help_arg or ''
-
-    @property
-    def help_arg(self):
-        """Text for the help line"""
-        if self._help_arg:
-            return self._help_arg
-        return ', '.join(self.arg)
-
-    @help_arg.setter
-    def help_arg(self, value):
-        self._help_arg = value
-
-    def __repr__(self) -> str:
-        return "%s: %s" % (self.arg, self.handler)
+    def __init__(self, message: str, *args: object, arg=None) -> None:
+        if arg:
+            message = f"{arg}: {message}"
+        super().__init__(message, *args)
 
 
-class ArgumentParser:
-    """Simple argument parsers for alphaconf"""
+class Action:
+    """Action for parsing"""
 
-    app_properties: Dict
-    parse_result: str
-    configuration_list: List[Union[str, DictConfig]]
-    other_arguments: List[str]
-    _option_handler_dict: Dict[str, OptionHandler]
-    _option_handler_list: List[OptionHandler]
-    help_descriptions: Dict[str, str]
+    def __init__(self, *, metavar=None, help=None) -> None:
+        self.metavar = metavar
+        self.help = help
+        self.has_arg = bool(metavar)
 
-    def __init__(self, app_properties: Dict) -> None:
-        """Initialze the parser with an application"""
-        self.app_properties = app_properties
-        self._option_handler_list = []
-        self._option_handler_dict = {}
-        self.help_descriptions = {}
-        self.reset()
+    def check_argument(self, value):
+        if not value and self.metavar:
+            return "Required value"
+        return None
 
-    @functools.wraps(OptionHandler.__init__)
-    def add_option_handler(self, *a, **kw):
-        """Add an option to the parser (passed to OptionHandler)"""
-        opt = OptionHandler(*a, **kw)
-        self._option_handler_list.append(opt)
-        for arg in opt.arg:
-            self._option_handler_dict[arg] = opt
-        return opt
+    def handle(self, result, value):
+        if result.result:
+            return "Result is already set"
+        result.result = self
+        return 'stop'
 
-    def reset(self):
-        """Reset the parser"""
-        self.parse_result = ''
-        self.configuration_list = []
-        self.other_arguments = []
+    def run(self, app):
+        raise ArgumentError(f"Cannot execute action {self}")
+
+    def __str__(self) -> str:
+        return type(self).__name__
+
+
+class ShowConfigurationAction(Action):
+    """Show configuration action"""
+
+    def run(self, app):
+        print(app.yaml_configuration())
+        raise ExitApplication
+
+
+class HelpAction(Action):
+    """Help action"""
+
+    def run(self, app):
+        app.print_help()
+        raise ExitApplication
+
+
+class VersionAction(Action):
+    """Version action"""
+
+    def run(self, app):
+        p = app.properties
+        prog = p.get('name')
+        version = p.get('version')
+        print(f"{prog} {version}")
+        desc = p.get('short_description')
+        if desc:
+            print(desc)
+        raise ExitApplication
+
+
+class ConfigurationAction(Action):
+    """Configuration action"""
+
+    def check_argument(self, value):
+        if self.metavar and '=' in self.metavar and '=' not in value:
+            return 'Argument should be in format ' + (self.metavar)
+        return super().check_argument(value)
+
+    def handle(self, result, value):
+        result._add_config(value)
+
+
+class ConfigurationFileAction(ConfigurationAction):
+    """Load configuration file action"""
+
+    def check_argument(self, value):
+        if not value:
+            return 'Missing filename for configuration file'
+        return None
+
+    def handle(self, result, value):
+        result._add_config(OmegaConf.load(value))
+
+
+class ConfigurationSelectAction(ConfigurationAction):
+    """oc.select configuration action"""
+
+    def check_argument(self, value):
+        return Action.check_argument(self, value)
+
+    def handle(self, result, value):
+        key, value = _split(value)
+        value = value or 'default'
+        arg = "{key}=${{oc.select:base.{key}.{value}}}".format(key=key, value=value)
+        return super().handle(result, arg)
+
+
+class ParseResult:
+    """The result of argument parsing"""
+
+    def __init__(self) -> None:
+        """Initialize the result"""
+        self.result = None
+        self.rest = []
+        self._config = []
+
+    def _add_config(self, value: Union[List[str], DictConfig, Dict, str]):
+        """Add a configuration item"""
+        if isinstance(value, list):
+            self._config.extend(value)
+            return
+        elif isinstance(value, DictConfig):
+            pass
+        elif isinstance(value, dict):
+            value = OmegaConf.create(value)
+        elif isinstance(value, str):
+            pass
+        else:
+            raise ArgumentError(f"Invalid configuration type {type(value)}")
+        self._config.append(value)
 
     def configurations(self) -> Iterable[DictConfig]:
         """List parsed configuration dicts"""
-        for typ, conf in itertools.groupby(self.configuration_list, type):
+        configuration_list = self._config
+        if not configuration_list:
+            return
+        for typ, conf in itertools.groupby(configuration_list, type):
             if issubclass(typ, DictConfig):
                 yield from conf
             else:
                 yield OmegaConf.from_dotlist(list(conf))
 
-    def parse_arguments(self, args: List[str]) -> None:
-        """Parse arguments
+    def __repr__(self) -> str:
+        return f"(result={self.result}, config={self._config}, rest={self.rest})"
 
-        Parsing rules:
-        - "--" indicates end of arguments, rest is put into other arguments
-        - "ABC=DEF" is considered as argument ABC and value DEF to load into configuration
-        - If the argument starts with a "-", it is handled as an option
-        - If the option handling misses an argument, it may raise MissingMandatoryValue
-        - The handling is either a special code or a list of "key=value"; see handle_option()
 
-        :param args: List of arguments to parse
-        """
-        parse_result = ''
-        skip = 0
-        for i, arg in enumerate(args):
-            if skip:
-                skip -= 1
-                continue
-            # Split argument on '=' sign
-            arg_split = arg.split('=', 1)
-            value = None
-            if len(arg_split) > 1:
-                arg, value = arg_split
-            # Handle option
-            try:
-                if value is not None and arg[:1] != '-':
-                    result = ["%s=%s" % (arg, value)]
-                else:
-                    result = self.handle_option(arg, value)
-            except MissingMandatoryValue:
-                if len(args) <= i + 1 and value is None:
-                    raise
-                value = args[i + 1]
-                skip = 1
-                result = self.handle_option(arg, value)
-            # Handle result option
-            if isinstance(result, DictConfig):
-                self.configuration_list.append(result)
-            elif isinstance(result, list):
-                self.configuration_list.extend(result)
-            elif result == "stop":
-                self.other_arguments += args[i:]
+class ArgumentParser:
+    """Parses arguments for alphaconf"""
+
+    def __init__(self) -> None:
+        self._opt_actions = {}
+        self._pos_actions = []
+        self.help_messages = {}
+
+    def parse_args(self, arguments: List[str]) -> ParseResult:
+        """Parse the argument"""
+        result = ParseResult()
+        arguments = list(arguments)
+        arguments.reverse()
+        while arguments:
+            arg = arguments.pop()
+            if arg == '--':
                 break
-            elif result == 'skip':
-                pass
-            elif result == 'skip_next':
-                skip += 1
-            elif result == 'exit':
-                parse_result = 'exit'
-            elif result.startswith('result:') and not parse_result:
-                parse_result = result[7:]
+            value = None
+            is_opt = arg.startswith('-')
+            if is_opt and '=' in arg:
+                # arg is -xxx=yyy, split it
+                arg, value = _split(arg)
+                if not arg.startswith('--') and len(arg) != 2:
+                    raise ArgumentError("Short option must be alone with a value", arg=arg)
+            if is_opt:
+                # parse option arguments
+                action = self._opt_actions.get(arg)
+                if not action:
+                    raise ArgumentError('Unrecognized option', arg=arg)
+                if value is None and action.has_arg:
+                    if not arguments:
+                        raise ArgumentError(f"No more arguments to read {action.metavar}", arg=arg)
+                    value = arguments.pop()
+                elif value is not None and not action.has_arg:
+                    raise ArgumentError("Action has no arguments", arg=arg)
+                error = action.check_argument(value)
+                if error:
+                    raise ArgumentError(error, arg=arg)
+                action_result = action.handle(result, value)
             else:
-                raise RuntimeError('Invalid result of handling option')
-        try:
-            self.handle_other_arguments()
-        except InvalidArgumentError:
-            if not bool(parse_result):
-                raise
-            # otherwise skip argument errors since we have a result
-        self.parse_result = parse_result or 'ok'
+                # parse positional arguments
+                if value is None:
+                    value = arg
+                arg = None
+                action_result = f"Unrecognized argument: {value}"
+                for action in self._pos_actions:
+                    if not action.check_argument(value):
+                        action_result = action.handle(result, value)
+                        break
+            # check result
+            if action_result == 'stop':
+                break
+            if action_result:
+                raise ArgumentError(action_result, arg=arg)
+        # set the rest of the arguments
+        arguments.reverse()
+        result.rest += arguments
+        return result
 
-    def handle_option(self, arg: str, value: str) -> Union[str, List[str], DictConfig]:
-        """Handle an option found in the arguments
+    def add_argument(self, action_class, *names, **kw):
+        """Add an argument handler
 
-        May rise InvalidArgumentError if the argument is unrecognized.
-        Special string values that may be returned:
-        - stop: Stop parsing the rest of the arguments and send them to other (default for '--')
-        - skip: No-op
-        - skip_next: Skip parsing the next argument
-        - "result:*": Set the parse result value
-
-        :param arg: The argument
-        :param value: The name of the argument (or None)
+        :param action_class: Action(kw) will be added as a handler
+        :param names: Option or positional argument name
         """
-        if arg == '--':
-            return 'stop'
-        handler = self._option_handler_dict.get(arg)
-        if handler:
-            return handler.handler(value)
-        raise InvalidArgumentError('Unexpected argument: %s' % arg)
+        action = action_class(**kw)
+        is_opt = False
+        for name in names:
+            if not name.startswith('-'):
+                continue
+            self._opt_actions[name] = action
+            is_opt = True
+        if not is_opt:
+            if 'metavar' not in kw:
+                raise ArgumentError(f"Missing metavar for action {action}")
+            self._pos_actions.append(action)
 
-    def handle_other_arguments(self):
-        """Handle other unparsed or skipped arguments"""
-        other = self.other_arguments
-        if other and other[0] != '--':
-            raise InvalidArgumentError('Unparsed arguments: %s' % other)
+    def print_help(self):
+        """Print the help"""
+        lines = []
+        tpl = "  {:<27} {}"
+        if self._opt_actions:
+            lines.append('options:')
+            visited = set()
+            for action in self._opt_actions.values():
+                if action in visited:
+                    continue
+                visited.add(action)
+                opts = [o for o, a in self._opt_actions.items() if a == action]
+                option_line = ', '.join(opts)
+                if action.metavar:
+                    option_line += ' ' + action.metavar
+                if len(option_line) > 27:
+                    lines.append(tpl.format(option_line, ''))
+                    if action.help:
+                        lines.append((30 * ' ') + action.help)
+                else:
+                    lines.append(tpl.format(option_line, action.help or ''))
+            lines.append('')
+        if self._pos_actions:
+            lines.append('positional arguments:')
+            for action in self._pos_actions:
+                lines.append(tpl.format(action.metavar or '', action.help or ''))
+        if self.help_messages:
+            for name, help in self.help_messages.items():
+                lines.append(tpl.format(name, help))
+        print(*lines, sep='\n')
 
-    def print_help(self, brief: str = None):
-        """Print the help with options
 
-        :param brief: Whether to print a brief summary ("version" for version only)
-        """
-        app = self.app_properties
-        if brief == 'version':
-            print(f"{app.get('name')} {app.get('version', '(no-version)')}")
-            return
-        # Header
-        first_line = f"Usage: {app.get('name')} [ options ]"
-        description = app.get('description', '')
-        short_description = app.get(
-            'short_description',
-            description if 0 < len(description) < 50 else "",
+def configure_parser(parser: ArgumentParser, *, app=None):
+    """Add argument parsing for alphaconf"""
+    parser.add_argument(
+        ConfigurationAction,
+        metavar='key=value',
+        help='Configuration items',
+    )
+    parser.add_argument(
+        HelpAction,
+        '-h',
+        '--help',
+        help="Show the help",
+    )
+    if app and app.properties.get('version'):
+        parser.add_argument(
+            VersionAction,
+            '-V',
+            '--version',
+            help="Show the version",
         )
-        if short_description:
-            first_line += (
-                " - " if len(first_line) + len(short_description) < 75 else "\n"
-            ) + short_description
-        print(first_line)
-        if brief:
-            return
-        # Description
-        if description and description != short_description:
-            print()
-            print(description)
-        # Options
-        print()
-        line_format = '  {arg:32s}  {description}'
-        for handler in self._option_handler_list:
-            print(line_format.format(arg=handler.help_arg, description=handler.help))
-        print(line_format.format(arg='key=value', description="Load a configuration key-value"))
-        for name, description in sorted(self.help_descriptions.items()):
-            print(line_format.format(arg=name, description=description))
-
-
-def add_default_option_handlers(parser: ArgumentParser, *, add_help_version=True) -> None:
-    """Add default options to the parser
-
-    - help
-    - version
-    - configuration: show it
-    - config-file: load the file
-    - select: shortcut
-    """
-
-    def help(brief=None):
-        parser.print_help(brief)
-        return 'exit'
-
-    def load_configuration(value):
-        if value is None:
-            raise MissingMandatoryValue('Missing filename for configuration file')
-        return OmegaConf.load(value)
-
-    def select_option(value):
-        if value is None or '=' not in value:
-            raise MissingMandatoryValue('--select requires an argument with an equal sign')
-        value_split = value.split('=', 1)
-        value = value_split[1] if len(value_split) > 1 else 'default'
-        return ["{key}=${{oc.select:base.{key}.{value}}}".format(key=value_split[0], value=value)]
-
-    if add_help_version:
-        parser.add_option_handler(
-            ['-h', '-?', '--help'],
-            lambda _: help(),
-            help="Print help message",
-            help_arg='-h, --help',
-        )
-        parser.add_option_handler(
-            ['-V', '--version'],
-            lambda _: help('version'),
-            help="Print the version",
-        )
-    parser.add_option_handler(
-        ['-C', '--configuration'],
-        lambda _: "result:show_configuration",
+    parser.add_argument(
+        ShowConfigurationAction,
+        '-C',
+        '--configuration',
         help="Show the configuration",
     )
-    parser.add_option_handler(
-        ['-f', '--config', '--config-file'],
-        load_configuration,
+    parser.add_argument(
+        ConfigurationFileAction,
+        '-f',
+        '--config',
+        '--config-file',
+        metavar='path',
         help="Load configuration from file",
-        help_arg='-f, --config[-file] path',
     )
-    parser.add_option_handler(
-        ['--select'],
-        select_option,
+    parser.add_argument(
+        ConfigurationSelectAction,
+        '--select',
         help="Shortcut to select a base configuration",
-        help_arg="--select key=base_template",
+        metavar="key=base_template",
     )

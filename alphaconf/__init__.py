@@ -67,9 +67,14 @@ class Application:
             properties['name'] = self.__get_default_name()
         self.properties = properties
         # Add argument parser
-        self._arg_parser = arg_parser.ArgumentParser(properties)
-        arg_parser.add_default_option_handlers(self._arg_parser)
-        self._arg_parser.help_descriptions.update(_DEFAULTS['helpers'])
+        self.__initialize_parser()
+
+    def __initialize_parser(self):
+        self.parsed = None
+        self.argument_parser = arg_parser.ArgumentParser()
+        parser = self.argument_parser
+        arg_parser.configure_parser(parser, app=self)
+        parser.help_messages.update(_DEFAULTS['helpers'])
 
     @staticmethod
     def __get_default_name() -> str:
@@ -98,11 +103,6 @@ class Application:
     def name(self):
         """Get the name of the application"""
         return self.properties['name']
-
-    @property
-    def argument_parser(self):
-        """The argument parser instance"""
-        return self._arg_parser
 
     @property
     def configuration(self) -> DictConfig:
@@ -236,31 +236,22 @@ class Application:
         _log.debug('Start setup application')
 
         # Parse arguments
-        parser_result = None
         if arguments is True:
             arguments = sys.argv[1:]
-        if isinstance(arguments, list):
-            self.argument_parser.reset()
-            self.argument_parser.parse_arguments(arguments)
-            parser_result = self.argument_parser.parse_result
-            _log.debug('Parse arguments result: %s', parser_result)
+        if not isinstance(arguments, list):
+            arguments = []
+        self.parsed = self.argument_parser.parse_args(arguments)
 
         # Load and merge configurations
         self._load_dotenv(load_dotenv=load_dotenv)
         configurations = list(self._get_configurations(env_prefixes=env_prefixes))
-        if parser_result:
-            configurations.extend(self.argument_parser.configurations())
+        if self.parsed:
+            configurations.extend(self.parsed.configurations())
         self.__config = OmegaConf.merge(*configurations)
         _log.debug('Merged %d configurations', len(configurations))
 
         # Handle the result
-        if parser_result == 'show_configuration':
-            print(self.yaml_configuration())
-            raise ExitApplication
-        elif parser_result == 'exit':
-            raise ExitApplication
-        elif parser_result is not None and parser_result != 'ok':
-            raise RuntimeError('Invalid argument parsing result: %s' % parser_result)
+        self._handle_result()
 
         # Try to get the whole configuration to resolve links
         if resolve_configuration:
@@ -269,9 +260,17 @@ class Application:
         # Logging
         if setup_logging:
             _log.debug('Setup logging')
-            self.setup_logging()
+            self._setup_logging()
 
-    def setup_logging(self) -> None:
+    def _handle_result(self):
+        """Handle result that is in self.parsed"""
+        if self.parsed.result:
+            return self.parsed.result.run(self)
+        if self.parsed.rest:
+            raise arg_parser.ArgumentError(f"Too many arguments {self.parsed.rest}")
+        return None
+
+    def _setup_logging(self) -> None:
         """Setup logging
 
         Set the time to GMT, log key 'logging' from configuration or if none, base logging.
@@ -335,6 +334,24 @@ class Application:
                 configuration[key] = Application.__mask_secrets(configuration[key])
         return configuration
 
+    def print_help(self, *, usage=None, description=None, arguments=True):
+        """Print the help message
+        Set the arguments to False to disable printing them."""
+        p = self.properties
+        if usage is None:
+            usage = f"usage: {p.get('name') or 'app'}"
+            usage += " [arguments] [key=value ...]"
+        if isinstance(usage, str):
+            print(usage)
+        if description is None:
+            description = p.get('description')
+        if isinstance(description, str):
+            print()
+            print(description)
+        if arguments:
+            print()
+            self.argument_parser.print_help()
+
     def run(self, main, arguments=True, *, should_exit=True, **configuration):
         """Run this application
 
@@ -349,9 +366,14 @@ class Application:
         except MissingMandatoryValue as e:
             _log.error(e)
             if should_exit:
+                sys.exit(99)
+            raise
+        except arg_parser.ArgumentError as e:
+            _log.error(e)
+            if should_exit:
                 sys.exit(2)
             raise
-        except ExitApplication:
+        except arg_parser.ExitApplication:
             _log.debug('Normal application exit')
             if should_exit:
                 sys.exit()
@@ -384,12 +406,6 @@ class Application:
         running = self == application.get()
         ready = self.__config is not None
         return f"{type(self).__name__}({self.name}; loaded={ready}; running={running})"
-
-
-class ExitApplication(BaseException):
-    """Signal to exit the application normally"""
-
-    pass
 
 
 #######################################
@@ -440,9 +456,8 @@ def setup_configuration(
 
 def check_application():
     """Check if an application is set up and set it up if it's not"""
-    try:
-        application.get()
-    except LookupError:
+    app = application.get(None)
+    if app is not None:
         return
     app = Application()
     application.set(app)

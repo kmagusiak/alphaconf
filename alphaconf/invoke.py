@@ -3,18 +3,10 @@ import invoke
 from . import Application, application, arg_parser
 
 
-class InvokeArgumentParser(arg_parser.ArgumentParser):
-    """ArgumentParser for invoke, stops after first unrecognized option"""
-
-    def handle_option(self, arg: str, value: str):
-        try:
-            return super().handle_option(arg, value)
-        except arg_parser.InvalidArgumentError:
-            # stop parsing on first unrecognized value
-            return 'stop'
-
-    def handle_other_arguments(self):
-        return  # do nothing, they will be used by the application
+class InvokeAction(arg_parser.Action):
+    def handle(self, result, value):
+        result.rest.append(value)
+        return 'stop'
 
 
 class InvokeApplication(Application):
@@ -22,8 +14,16 @@ class InvokeApplication(Application):
 
     def __init__(self, **properties) -> None:
         super().__init__(**properties)
-        self._arg_parser = InvokeArgumentParser(self._arg_parser.app_properties)
-        arg_parser.add_default_option_handlers(self._arg_parser, add_help_version=False)
+        self.argument_parser.add_argument(
+            InvokeAction,
+            metavar="invoke arguments",
+            help="Rest is passed to invoke",
+        )
+
+    def _handle_result(self):
+        if self.parsed.result:
+            return self.parsed.result.run(self)
+        return None
 
     def _create_program(self, namespace: invoke.collection.Collection):
         """Create the invoke program"""
@@ -33,7 +33,7 @@ class InvokeApplication(Application):
 
     def _run_program(self):
         """Run the invoke program"""
-        argv = [self.name] + self.argument_parser.other_arguments
+        argv = [self.name] + self.parsed.rest
         return self._create_program(self.namespace).run(argv)
 
     def run_collection(self, namespace: invoke.collection.Collection, **configuration):
@@ -59,9 +59,7 @@ def invoke_application(
         app.run_collection(namespace)
     else:
         # Just configure the namespace and set the application
-        current_app = application.get(None)
-        if not current_app:
-            application.set(app)
+        application.set(app)
         namespace.configure(app.get_config())
         app.setup_logging()
     return app
