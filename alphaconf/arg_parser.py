@@ -1,5 +1,5 @@
 import itertools
-from typing import Iterable, Union, List, Dict
+from typing import Dict, Iterable, List, Union
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -110,7 +110,7 @@ class ConfigurationSelectAction(ConfigurationAction):
     """oc.select configuration action"""
 
     def check_argument(self, value):
-        return super(self, Action).check_argument(value)
+        return Action.check_argument(self, value)
 
     def handle(self, result, value):
         key, value = _split(value)
@@ -190,7 +190,7 @@ class ArgumentParser:
                 if value is None and action.has_arg:
                     if not arguments:
                         raise ArgumentError(f"No more arguments to read {action.metavar}", arg=arg)
-                    arg = arguments.pop()
+                    value = arguments.pop()
                 elif value is not None and not action.has_arg:
                     raise ArgumentError("Action has no arguments", arg=arg)
                 error = action.check_argument(value)
