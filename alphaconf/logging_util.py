@@ -21,6 +21,7 @@ if colorama:
         logging.WARNING: colorama.Fore.YELLOW,
         logging.INFO: colorama.Fore.GREEN,
         # logging.DEBUG: colorama.Fore.LIGHTBLACK_EX,
+        -1: colorama.Style.RESET_ALL,  # reset
     }
 
 """Fields of a default log record"""
@@ -43,7 +44,7 @@ class ColorFormatter(Formatter):
     def formatMessage(self, record):  # noqa: N802
         # we can change the message because each call to format() resets it
         if record.levelno in LOG_COLORS:
-            record.message = LOG_COLORS[record.levelno] + record.message + colorama.Style.RESET_ALL
+            record.message = LOG_COLORS[record.levelno] + record.message + LOG_COLORS[-1]
         return super().formatMessage(record)
 
 
