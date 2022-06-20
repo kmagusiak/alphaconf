@@ -210,13 +210,12 @@ class Application:
             prefixes = None
         if prefixes:
             _log.debug('Loading env configuration from prefixes %s' % (prefixes,))
-            yield OmegaConf.from_dotlist(
-                [
-                    "%s=%s" % (name.lower().replace('_', '.'), value)
-                    for name, value in os.environ.items()
-                    if name.startswith(prefixes)
-                ]
-            )
+            dotlist = [
+                "%s=\"%s\"" % (name.lower().replace('_', '.').replace('"', '\\"'), value)
+                for name, value in os.environ.items()
+                if name.startswith(prefixes)
+            ]
+            yield OmegaConf.from_dotlist(dotlist)
 
     def setup_configuration(
         self,
