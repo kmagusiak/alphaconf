@@ -167,6 +167,25 @@ class Application:
                 raise
             _log.debug('dotenv is not installed')
 
+    def __load_environ(self, prefixes: Iterable[str]) -> DictConfig:
+        """Load environment variables into a dict configuration"""
+        from yaml.error import YAMLError  # type: ignore
+
+        trans = str.maketrans('_', '.', '"\\=')
+        dotlist = [
+            (name.lower().translate(trans), value)
+            for name, value in os.environ.items()
+            if name.startswith(tuple(prefixes))
+        ]
+        conf = OmegaConf.create({})
+        for name, value in dotlist:
+            try:
+                conf.merge_with_dotlist(["%s=%s" % (name, value)])
+            except YAMLError:
+                # if cannot load the value as a dotlist, just add the string
+                OmegaConf.update(conf, name, value)
+        return conf
+
     def _get_configurations(
         self,
         env_prefixes: Union[bool, Iterable[str]] = True,
@@ -210,12 +229,7 @@ class Application:
             prefixes = None
         if prefixes:
             _log.debug('Loading env configuration from prefixes %s' % (prefixes,))
-            dotlist = [
-                "%s=\"%s\"" % (name.lower().replace('_', '.').replace('"', '\\"'), value)
-                for name, value in os.environ.items()
-                if name.startswith(prefixes)
-            ]
-            yield OmegaConf.from_dotlist(dotlist)
+            yield self.__load_environ(prefixes)
 
     def setup_configuration(
         self,
