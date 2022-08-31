@@ -21,6 +21,7 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     # https://pypi.org/pypi?%3Aaction=list_classifiers
     classifiers=[
+        "Programming Language :: Python :: 3",
         "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: MIT License",
         "Environment :: Console",
