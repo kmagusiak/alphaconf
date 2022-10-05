@@ -1,6 +1,7 @@
 import invoke
 
 from . import Application, application, arg_parser
+from . import run as _app_run
 
 
 class InvokeAction(arg_parser.Action):
@@ -14,13 +15,14 @@ class InvokeApplication(Application):
 
     def __init__(self, **properties) -> None:
         super().__init__(**properties)
+        self.namespace = None
         self.argument_parser.add_argument(
             InvokeAction,
             metavar="invoke arguments",
             help="Rest is passed to invoke",
         )
 
-    def _handle_result(self):
+    def _handle_parsed_result(self):
         if self.parsed.result:
             return self.parsed.result.run(self)
         return None
@@ -36,27 +38,14 @@ class InvokeApplication(Application):
         argv = [self.name] + self.parsed.rest
         return self._create_program(self.namespace).run(argv)
 
-    def run_collection(self, namespace: invoke.collection.Collection, **configuration):
-        """Set the namespace and run the program
 
-        :param namespace: The invoke collection to run
-        :param configuration: Configuration arguments
-        """
-        self.namespace = namespace
-        try:
-            return self.run(self._run_program, **configuration)
-        finally:
-            self.namespace = None
-
-
-def invoke_application(
-    __name__: str, namespace: invoke.collection.Collection, **properties
-) -> InvokeApplication:
+def run(__name__: str, namespace: invoke.collection.Collection, **properties) -> InvokeApplication:
     """Create an invoke application and run it if __name__ is __main__"""
     app = InvokeApplication(**properties)
     if __name__ == '__main__':
         # Let's run the application and parse the arguments
-        app.run_collection(namespace)
+        app.namespace = namespace
+        _app_run(app._run_program, app=app)
     else:
         # Just configure the namespace and set the application
         application.set(app)

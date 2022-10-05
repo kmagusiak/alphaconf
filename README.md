@@ -31,7 +31,7 @@ To run an application, you need...
     def main():
         log = logging.getLogger()
         # get the DictConfig from the current application
-        log.info('app name:', alphaconf.configuration().application.name)
+        log.info('app name:', alphaconf.configuration.get().application.name)
         # shortcut to get an option as a dict, str, etc.
         log.info('server.user:', alphaconf.get('server.user'))
         log.info('has server.user:', alphaconf.get('server.user', bool))
