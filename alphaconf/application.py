@@ -12,13 +12,6 @@ from . import arg_parser
 __doc__ = """Application
 
 Representation of an application with its configuration.
-
-Use `alphaconf.get()` or `alphaconf.configuration()` to read
-the current application's configuration.
-
-    if __name__ == '__main__':
-        alphaconf.Application().run(main)
-
 """
 
 _log = logging.getLogger(__name__)
@@ -38,13 +31,16 @@ _DEFAULTS: Dict[str, Any] = {
 
 
 class Application:
-    """An application configuration description
+    """An application description
 
     :param properties: Properties of the application, such as:
         name, version, short_description, description, etc.
     """
 
     __config: Optional[DictConfig]
+    properties: Dict[str, str]
+    parsed: Optional[arg_parser.ParseResult]
+    argument_parser: arg_parser.ArgumentParser
 
     def __init__(self, **properties) -> None:
         """Initialize the application.
@@ -66,8 +62,7 @@ class Application:
 
     def __initialize_parser(self):
         self.parsed = None
-        self.argument_parser = arg_parser.ArgumentParser()
-        parser = self.argument_parser
+        self.argument_parser = parser = arg_parser.ArgumentParser()
         arg_parser.configure_parser(parser, app=self)
         parser.help_messages.update(_DEFAULTS['helpers'])
 
@@ -110,27 +105,6 @@ class Application:
             assert self.__config is not None
         return self.__config
 
-    def get_config(self, key: str = "", type=None) -> Any:
-        """Get a configuration value by key
-
-        The value is resolved and a missing exception may be thrown for mandatory arguments.
-
-        :param key: Optional selection key for the configuration
-        :param type: Optional type to convert to
-        :return: The value or None
-        """
-        if key:
-            c = OmegaConf.select(self.configuration, key, throw_on_missing=True)
-        else:
-            c = self.configuration
-        if isinstance(c, DictConfig):
-            c = OmegaConf.to_object(c)
-        if type and c is not None:
-            from . import arg_type
-
-            c = arg_type.convert_to_type(c, type)
-        return c
-
     def _get_possible_configuration_paths(self) -> Iterable[str]:
         """List of paths where to find configuration files"""
         name = self.name
@@ -165,10 +139,11 @@ class Application:
         from yaml.error import YAMLError  # type: ignore
 
         trans = str.maketrans('_', '.', '"\\=')
+        prefixes = tuple(prefixes)
         dotlist = [
             (name.lower().translate(trans), value)
             for name, value in os.environ.items()
-            if name.startswith(tuple(prefixes))
+            if name.startswith(prefixes)
         ]
         conf = OmegaConf.create({})
         for name, value in dotlist:
@@ -268,7 +243,7 @@ class Application:
 
         # Try to get the whole configuration to resolve links
         if resolve_configuration:
-            self.get_config()
+            OmegaConf.resolve(self.__config)
 
         # Logging
         if setup_logging:
@@ -294,7 +269,7 @@ class Application:
 
         logging_util.set_gmt()
         log = logging.getLogger()
-        logging_config = self.get_config('logging')
+        logging_config = cast(Dict[str, Any], OmegaConf.to_object(self.configuration.logging))
         if logging_config:
             # Configure using the st configuration
             import logging.config

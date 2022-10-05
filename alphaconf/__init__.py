@@ -4,11 +4,10 @@ import sys
 from contextvars import ContextVar
 from typing import Any, Dict, Optional, Union, cast
 
-from omegaconf import MissingMandatoryValue  # XXX still needed?
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
 
 from . import application as _app
-from .application import Application, arg_parser  # noqa: F401
+from .application import Application, arg_parser
 
 __doc__ = """AlphaConf
 
@@ -20,7 +19,7 @@ Use `alphaconf.get()` or `alphaconf.configuration()` to read
 the current application's configuration.
 
     if __name__ == '__main__':
-        alphaconf.Application().run(main)
+        alphaconf.run(main)
 
 """
 
@@ -29,14 +28,25 @@ the current application's configuration.
 
 
 """The application context"""
-application: ContextVar[_app.Application] = ContextVar('application')
+application: ContextVar[Application] = ContextVar('application')
 configuration: ContextVar[DictConfig] = ContextVar('configuration', default=OmegaConf.create())
 
 
 def get(config_key: str, type=None) -> Any:
     """Select a configuration from the current application"""
     app = application.get()
-    return app.get_config(config_key, type=type)
+    conf = app.configuration
+    if config_key:
+        c = OmegaConf.select(conf, config_key, throw_on_missing=True)
+    else:
+        c = conf
+    if isinstance(c, DictConfig):
+        c = OmegaConf.to_object(c)
+    if type and c is not None:
+        from . import arg_type
+
+        c = arg_type.convert_to_type(c, type)
+    return c
 
 
 @contextlib.contextmanager
@@ -51,7 +61,7 @@ def set(**kw):
     configuration.reset(token)
 
 
-def run(main, arguments=True, *, should_exit=True, app: _app.Application = None, **config):
+def run(main, arguments=True, *, should_exit=True, app: Application = None, **config):
     """Run this application
 
     :param main: The main function to call
@@ -61,7 +71,7 @@ def run(main, arguments=True, *, should_exit=True, app: _app.Application = None,
     :return: The result of main
     """
     if app is None:
-        app = _app.Application()
+        app = Application()
     _log = _app._log
     try:
         app.setup_configuration(arguments, **config)
