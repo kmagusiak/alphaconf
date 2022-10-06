@@ -35,8 +35,8 @@ def main():
     print('server.home', alphaconf.get('server.home', Path))
     # show configuration
     value = alphaconf.get('show')
-    if value and alphaconf.get(value):
-        print(alphaconf.get(value))
+    if value and (value := alphaconf.get(value)):
+        print(value)
     # log an exception if we have it in the configuration
     if alphaconf.get('exception'):
         try:
