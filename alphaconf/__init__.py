@@ -1,6 +1,7 @@
 import contextlib
 import contextvars
 import logging
+import re
 import sys
 from contextvars import ContextVar
 from typing import Any, Callable, Dict, Union, cast
@@ -9,7 +10,7 @@ from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
 
 from .application import Application, _log
 from .arg_parser import ArgumentError, ExitApplication
-from .arg_type import convert_to_type
+from .type_resolvers import convert_to_type
 
 __doc__ = """AlphaConf
 
@@ -24,9 +25,14 @@ Use `alphaconf.get()` to read the current application's configuration.
 
 """
 
+"""A list of functions which given a key indicate whether it's a secret"""
+SECRET_MASKS = [
+    # mask if contains a kind of secret and it's not in a file
+    re.compile(r'.*(key|password|secret)s?(?!_file)(_|$)').match,
+]
+
 #######################################
 # APPLICATION CONTEXT
-
 
 """The application context"""
 application: ContextVar[Application] = ContextVar('application')

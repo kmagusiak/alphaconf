@@ -88,6 +88,9 @@ For example, `${oc.env:USER,me}` would resolve to the environment variable
 USER with a default value "me".
 Similarly, `${oc.select:path}` will resolve to another configuration value.
 
+Additional resolvers are added to read file contents.
+These are the same as type casts: read_text, read_strip, read_bytes.
+
 The select is used to build multiple templates for configurations by providing
 base configurations.
 An argument `--select key=template` is a shortcut for

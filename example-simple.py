@@ -12,8 +12,14 @@ server:
   url: http://default
   user: ${oc.env:USER}
   home: "~"
+show: false
+exception: false
 """,
-    {"server": "Arguments for the demo"},
+    {
+        "server": "Arguments for the demo",
+        "show": "The name of the selection to show",
+        "exception": "If set, raise an exception",
+    },
 )
 
 
@@ -27,6 +33,10 @@ def main():
     # shortcut version to get a configuration value
     print('server.user:', alphaconf.get('server.user'))
     print('server.home', alphaconf.get('server.home', Path))
+    # show configuration
+    value = alphaconf.get('show')
+    if value and (value := alphaconf.get(value)):
+        print(value)
     # log an exception if we have it in the configuration
     if alphaconf.get('exception'):
         try:
