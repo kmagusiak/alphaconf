@@ -56,7 +56,8 @@ class ShowConfigurationAction(Action):
     """Show configuration action"""
 
     def run(self, app):
-        print(app.yaml_configuration())
+        output = OmegaConf.to_yaml(app.masked_configuration())
+        print(output)
         raise ExitApplication
 
 

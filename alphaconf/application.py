@@ -280,29 +280,37 @@ class Application:
             log.addHandler(output)
             log.setLevel(logging.INFO)
 
-    def yaml_configuration(self, mask_base: bool = True, mask_secrets: bool = True) -> str:
+    def masked_configuration(
+        self,
+        *,
+        mask_base: bool = True,
+        mask_secrets: bool = True,
+        mask_keys: List[str] = [],
+    ) -> DictConfig:
         """Get the configuration as yaml string
 
         :param mask_base: Whether to mask "base" entry
-        :return: Configuration as string (yaml)
+        :param mask_secrets: Whether to mask secret keys
+        :param mask_keys: Which keys to mask
+        :return: Configuration copy with masked values
         """
-        configuration = self.configuration
-        if mask_base or mask_secrets:
-            configuration = configuration.copy()
+        config = self.configuration.copy()
         if mask_secrets:
-            configuration = Application.__mask_secrets(configuration)
+            config = Application.__mask_secrets(config)
         if mask_base:
-            configuration['base'] = {
-                key: list(choices.keys()) for key, choices in configuration.base.items()
-            }
-        return OmegaConf.to_yaml(configuration)
+            config['base'] = {key: list(choices.keys()) for key, choices in config.base.items()}
+        if mask_keys:
+            config = OmegaConf.masked_copy(
+                config, [k for k in config.keys() if k not in mask_keys and isinstance(k, str)]
+            )
+        return config
 
     @staticmethod
     def __mask_secrets(configuration):
         for key in list(configuration):
             if isinstance(key, str) and any(mask(key) for mask in SECRET_MASKS):
                 configuration[key] = '*****'
-            elif isinstance(configuration[key], (Dict, DictConfig)):
+            elif isinstance(configuration[key], (Dict, DictConfig, dict)):
                 configuration[key] = Application.__mask_secrets(configuration[key])
         return configuration
 
