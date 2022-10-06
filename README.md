@@ -31,17 +31,18 @@ To run an application, you need...
     def main():
         log = logging.getLogger()
         # get the DictConfig from the current application
-        log.info('app name:', alphaconf.configuration().application.name)
+        log.info('app name:', alphaconf.configuration.get().application.name)
         # shortcut to get an option as a dict, str, etc.
         log.info('server.user:', alphaconf.get('server.user'))
         log.info('has server.user:', alphaconf.get('server.user', bool))
 
     if __name__ == '__main__':
         # run the application
-        alphaconf.Application(
+        alphaconf.run(
+            main,
             name='example',
             version='0.1',
-        ).run(main)
+        )
 
 ## Secrets
 
@@ -59,8 +60,7 @@ when the script is directly called.
     ns = Collection()  # define the invoke configuration
     import alphaconf.invoke
     alphaconf.setup_configuration({'backup': 'all'})
-    alphaconf.invoke.invoke_application(__name__, ns)
-
+    alphaconf.invoke.run(__name__, ns)
 
 ## How the configuration is loaded
 
@@ -71,8 +71,7 @@ Then configuration is built from:
 
 - default configurations defined using (`alphaconf.setup_configuration`)
 - `application` key is generated
-- configuration files from the system (from your HOME and configuration
-  directories)
+- configuration files from configuration directories (base on application name)
 - environment variables based on key prefixes,
   except "BASE" and "PYTHON";
   if you have a configuration key "abc", all environment variables starting
@@ -80,7 +79,7 @@ Then configuration is built from:
   to ".": "ABC_HELLO=a" would set "abc.hello=a"
 - key-values from the program arguments
 
-Finally, the configuration is fully resolved once and logging is configured.
+Finally, the configuration is fully resolved and logging is configured.
 
 ## Configuration templates and resolvers
 

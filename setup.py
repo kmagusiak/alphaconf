@@ -26,7 +26,7 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Environment :: Console",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     setup_requires=[
         'flake8',
         'setuptools_scm',

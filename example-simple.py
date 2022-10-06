@@ -13,7 +13,7 @@ server:
   user: ${oc.env:USER}
   home: "~"
 """,
-    {"server": "Contains the arguments for the demo"},
+    {"server": "Arguments for the demo"},
 )
 
 
@@ -23,7 +23,7 @@ def main():
     # ./example-simple.py logging.handlers.console.formatter=json
     logging.info('The app is running...', extra={'other': 'othervalue'})
     # get the application name from the configuration
-    print('app:', alphaconf.configuration().application.name)
+    print('app:', alphaconf.configuration.get().application.name)
     # shortcut version to get a configuration value
     print('server.user:', alphaconf.get('server.user'))
     print('server.home', alphaconf.get('server.home', Path))
@@ -36,8 +36,9 @@ def main():
 
 
 if __name__ == '__main__':
-    alphaconf.Application(
+    alphaconf.run(
+        main,
         name='example',
         version='0.1',
         description="Simple demo of alphaconf",
-    ).run(main)
+    )
