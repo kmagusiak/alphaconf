@@ -1,13 +1,15 @@
 import contextlib
+import contextvars
 import logging
 import sys
 from contextvars import ContextVar
-from typing import Any, Dict, Optional, Union, cast
+from typing import Any, Callable, Dict, Union, cast
 
 from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
 
-from . import application as _app
-from .application import Application, arg_parser
+from .application import Application, _log
+from .arg_parser import ArgumentError, ExitApplication
+from .arg_type import convert_to_type
 
 __doc__ = """AlphaConf
 
@@ -15,8 +17,7 @@ Based on omegaconf, provide a simple way to declare and run your application
 while loading the configuration from various files and command line
 arguments.
 
-Use `alphaconf.get()` or `alphaconf.configuration()` to read
-the current application's configuration.
+Use `alphaconf.get()` to read the current application's configuration.
 
     if __name__ == '__main__':
         alphaconf.run(main)
@@ -29,23 +30,25 @@ the current application's configuration.
 
 """The application context"""
 application: ContextVar[Application] = ContextVar('application')
+"""The current configuration"""
 configuration: ContextVar[DictConfig] = ContextVar('configuration', default=OmegaConf.create())
+"""Additional helpers for the application"""
+_helpers: ContextVar[Dict[str, str]] = ContextVar('configuration_helpers', default={})
 
 
-def get(config_key: str, type=None) -> Any:
-    """Select a configuration from the current application"""
-    app = application.get()
-    conf = app.configuration
+def get(config_key: str, type=None, *, default=None) -> Any:
+    """Select a configuration item from the current application"""
+    conf = configuration.get()
     if config_key:
         c = OmegaConf.select(conf, config_key, throw_on_missing=True)
     else:
         c = conf
     if isinstance(c, DictConfig):
         c = OmegaConf.to_object(c)
+    elif c is None:
+        return default
     if type and c is not None:
-        from . import arg_type
-
-        c = arg_type.convert_to_type(c, type)
+        c = convert_to_type(c, type)
     return c
 
 
@@ -53,6 +56,7 @@ def get(config_key: str, type=None) -> Any:
 def set(**kw):
     """Update the configuration in a with block"""
     if not kw:
+        yield
         return
     config = configuration.get()
     config = cast(DictConfig, OmegaConf.merge(config, kw))
@@ -61,7 +65,20 @@ def set(**kw):
     configuration.reset(token)
 
 
-def run(main, arguments=True, *, should_exit=True, app: Application = None, **config):
+def set_application(app: Application, merge: bool = False):
+    """Set the application and its configuration
+
+    :param app: The application
+    :param merge: Wether to merge the current configuration with the application (default false)
+    """
+    application.set(app)
+    config = app.configuration
+    if merge:
+        config = cast(DictConfig, OmegaConf.merge(configuration.get(), config))
+    configuration.set(config)
+
+
+def run(main: Callable, arguments=True, *, should_exit=True, app: Application = None, **config):
     """Run this application
 
     :param main: The main function to call
@@ -71,8 +88,12 @@ def run(main, arguments=True, *, should_exit=True, app: Application = None, **co
     :return: The result of main
     """
     if app is None:
-        app = Application()
-    _log = _app._log
+        properties = {
+            k: config.pop(k)
+            for k in ['name', 'version', 'description', 'short_description']
+            if k in config
+        }
+        app = Application(**properties)
     try:
         app.setup_configuration(arguments, **config)
     except MissingMandatoryValue as e:
@@ -80,23 +101,34 @@ def run(main, arguments=True, *, should_exit=True, app: Application = None, **co
         if should_exit:
             sys.exit(99)
         raise
-    except arg_parser.ArgumentError as e:
+    except ArgumentError as e:
         _log.error(e)
         if should_exit:
             sys.exit(2)
         raise
-    except arg_parser.ExitApplication:
+    except ExitApplication:
         _log.debug('Normal application exit')
         if should_exit:
             sys.exit()
         return
+    context = contextvars.copy_context()
+    try:
+        return context.run(__run_application, app=app, main=main, exc_info=should_exit)
+    except Exception:
+        if should_exit:
+            _log.debug('Exit application')
+            sys.exit(1)
+        raise
+
+
+def __run_application(app: Application, main: Callable, exc_info=True):
+    """Set the application and execute main"""
+    set_application(app)
     app_log = logging.getLogger()
-    if _app._DEFAULTS['testing_configurations']:
+    if get('testing', bool):
         app_log.info('Application testing (%s: %s)', app.name, main.__qualname__)
         return None
     # Run the application
-    token = application.set(app)
-    toekn_c = configuration.set(app.configuration)
     try:
         app_log.info('Application start (%s: %s)', app.name, main.__qualname__)
         result = main()
@@ -107,43 +139,31 @@ def run(main, arguments=True, *, should_exit=True, app: Application = None, **co
         return result
     except Exception as e:
         # no need to log exc_info beacause the parent will handle it
-        app_log.error('Application failed (%s) %s', type(e).__name__, e, exc_info=should_exit)
-        if should_exit:
-            app_log.debug('Exit application')
-            sys.exit(1)
+        app_log.error('Application failed (%s) %s', type(e).__name__, e, exc_info=exc_info)
         raise
-    finally:
-        configuration.reset(toekn_c)
-        application.reset(token)
 
 
 def setup_configuration(
     conf: Union[DictConfig, str, Dict],
     helpers: Dict[str, str] = {},
-    testing: Optional[bool] = None,
 ):
     """Add a default configuration
 
     :param conf: The configuration to add
     :param helpers: Description of parameters used in argument parser helpers
-    :param testing: If set, True adds the configuration to testing configurations,
-                    if False, the testing configurations are cleared
     """
+    # merge the configurations
     if isinstance(conf, DictConfig):
         config = conf
     else:
         config = cast(DictConfig, OmegaConf.create(conf))
-    defaults = _app._DEFAULTS  # XXX move
-    if testing is False:
-        defaults['testing_configurations'].clear()
-    config_key = 'testing_configurations' if testing else 'configurations'
-    defaults[config_key].append(config)
+    configuration.set(cast(DictConfig, OmegaConf.merge(configuration.get(), config)))
     # setup helpers
     for h_key in helpers:
         key = h_key.split('.', 1)[0]
         if key not in config:
             raise ValueError('Invalid helper not in configuration [%s]' % key)
-    defaults['helpers'].update(helpers)
+    _helpers.set({**_helpers.get(), **helpers})
 
 
 #######################################

@@ -38,9 +38,7 @@ def main():
 if __name__ == '__main__':
     alphaconf.run(
         main,
-        app=alphaconf.Application(
-            name='example',
-            version='0.1',
-            description="Simple demo of alphaconf",
-        ),
+        name='example',
+        version='0.1',
+        description="Simple demo of alphaconf",
     )

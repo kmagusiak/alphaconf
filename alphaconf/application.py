@@ -22,13 +22,6 @@ SECRET_MASKS = [
     re.compile(r'.*(password|secret|key)(?!_file)(_|$)').match,
 ]
 
-"""Map of default values"""
-_DEFAULTS: Dict[str, Any] = {
-    'configurations': [],
-    'helpers': {},
-    'testing_configurations': [],
-}
-
 
 class Application:
     """An application description
@@ -61,10 +54,12 @@ class Application:
         self.__initialize_parser()
 
     def __initialize_parser(self):
+        from . import _helpers
+
         self.parsed = None
         self.argument_parser = parser = arg_parser.ArgumentParser()
         arg_parser.configure_parser(parser, app=self)
-        parser.help_messages.update(_DEFAULTS['helpers'])
+        parser.help_messages.update(_helpers.get())
 
     @staticmethod
     def __get_default_name() -> str:
@@ -107,14 +102,14 @@ class Application:
 
     def _get_possible_configuration_paths(self) -> Iterable[str]:
         """List of paths where to find configuration files"""
-        name = self.name
+        name = self.name + '.yaml'
         is_windows = sys.platform.startswith('win')
         for path in [
-            '$APPDATA/{}.yaml' if is_windows else '/etc/{}.yaml',
-            '$LOCALAPPDATA/{}.yaml' if is_windows else '',
-            '$HOME/.{}.yaml',
-            '$HOME/.config/{}.yaml',
-            '$PWD/{}.yaml',
+            '$APPDATA/{}' if is_windows else '/etc/{}',
+            '$LOCALAPPDATA/{}' if is_windows else '',
+            '$HOME/.{}',
+            '$HOME/.config/{}',
+            '$PWD/{}',
         ]:
             path = os.path.expandvars(path.format(name))
             if path and '$' not in path:
@@ -168,13 +163,15 @@ class Application:
         :param env_prefixes: Prefixes of environment variables to load
         :return: OmegaConf configurations (to be merged)
         """
+        from . import configuration as ctx_configuration
+
         _log.debug('Loading default and app configurations')
-        yield from _DEFAULTS['configurations']
-        yield from _DEFAULTS['testing_configurations']
+        default_configuration = ctx_configuration.get()
+        yield default_configuration
         yield self._app_configuration()
         # Read files
         for path in self._get_possible_configuration_paths():
-            if os.path.exists(path):
+            if os.path.isfile(path):
                 _log.debug('Load configuration from %s', path)
                 conf = OmegaConf.load(path)
                 if isinstance(conf, DictConfig):
@@ -185,7 +182,7 @@ class Application:
         prefixes: Optional[Tuple[str, ...]]
         if env_prefixes is True:
             _log.debug('Detecting accepted env prefixes')
-            default_keys = {k for cfg in _DEFAULTS['configurations'] for k in cfg.keys()}
+            default_keys = {str(k) for k in default_configuration.keys()}
             prefixes = tuple(
                 k.upper() + '_'
                 for k in default_keys
