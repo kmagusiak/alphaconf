@@ -28,7 +28,7 @@ Use `alphaconf.get()` to read the current application's configuration.
 """A list of functions which given a key indicate whether it's a secret"""
 SECRET_MASKS = [
     # mask if contains a kind of secret and it's not in a file
-    re.compile(r'.*(password|secret|key)(?!_file)(_|$)').match,
+    re.compile(r'.*(key|password|secret)s?(?!_file)(_|$)').match,
 ]
 
 #######################################

@@ -28,7 +28,7 @@ TYPE_CONVERTER = {
 # register resolved from strings
 for _name, _function in TYPE_CONVERTER.items():
     if isinstance(_name, str):
-        OmegaConf.register_new_resolver(_name, _function)
+        OmegaConf.register_new_resolver(_name, _function)  # type: ignore
 
 
 def convert_to_type(value, type):
