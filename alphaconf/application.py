@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from omegaconf import DictConfig, OmegaConf
 
-from . import arg_parser
+from . import arg_parser, load_file
 
 __doc__ = """Application
 
@@ -102,7 +102,7 @@ class Application:
 
     def _get_possible_configuration_paths(self) -> Iterable[str]:
         """List of paths where to find configuration files"""
-        name = self.name + '.yaml'
+        name = self.name
         is_windows = sys.platform.startswith('win')
         for path in [
             '$APPDATA/{}' if is_windows else '/etc/{}',
@@ -111,9 +111,10 @@ class Application:
             '$HOME/.config/{}',
             '$PWD/{}',
         ]:
-            path = os.path.expandvars(path.format(name))
+            path = os.path.expandvars(path)
             if path and '$' not in path:
-                yield path
+                for ext in load_file.SUPPORTED_EXTENSIONS:
+                    yield path.format(name + '.' + ext)
 
     def _load_dotenv(self, load_dotenv: Optional[bool] = None):
         """Load dotenv variables (optionally)"""
@@ -173,7 +174,7 @@ class Application:
         for path in self._get_possible_configuration_paths():
             if os.path.isfile(path):
                 _log.debug('Load configuration from %s', path)
-                conf = OmegaConf.load(path)
+                conf = load_file.read_configuration_file(path)
                 if isinstance(conf, DictConfig):
                     yield conf
                 else:
