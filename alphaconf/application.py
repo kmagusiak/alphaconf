@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import sys
 import uuid
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
@@ -15,12 +14,6 @@ Representation of an application with its configuration.
 """
 
 _log = logging.getLogger(__name__)
-
-"""A list of functions which given a key indicate whether it's a secret"""
-SECRET_MASKS = [
-    # mask if contains a kind of secret and it's not in a file
-    re.compile(r'.*(password|secret|key)(?!_file)(_|$)').match,
-]
 
 
 class Application:
@@ -298,6 +291,8 @@ class Application:
 
     @staticmethod
     def __mask_secrets(configuration):
+        from . import SECRET_MASKS
+
         for key in list(configuration):
             if isinstance(key, str) and any(mask(key) for mask in SECRET_MASKS):
                 configuration[key] = '*****'
