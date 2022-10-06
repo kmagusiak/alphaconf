@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from omegaconf import DictConfig, OmegaConf
 
-from . import arg_parser
+from . import arg_parser, load_file
 
 __doc__ = """Application
 
@@ -95,7 +95,7 @@ class Application:
 
     def _get_possible_configuration_paths(self) -> Iterable[str]:
         """List of paths where to find configuration files"""
-        name = self.name + '.yaml'
+        name = self.name
         is_windows = sys.platform.startswith('win')
         for path in [
             '$APPDATA/{}' if is_windows else '/etc/{}',
@@ -104,9 +104,10 @@ class Application:
             '$HOME/.config/{}',
             '$PWD/{}',
         ]:
-            path = os.path.expandvars(path.format(name))
+            path = os.path.expandvars(path)
             if path and '$' not in path:
-                yield path
+                for ext in load_file.SUPPORTED_EXTENSIONS:
+                    yield path.format(name + '.' + ext)
 
     def _load_dotenv(self, load_dotenv: Optional[bool] = None):
         """Load dotenv variables (optionally)"""
@@ -166,7 +167,7 @@ class Application:
         for path in self._get_possible_configuration_paths():
             if os.path.isfile(path):
                 _log.debug('Load configuration from %s', path)
-                conf = OmegaConf.load(path)
+                conf = load_file.read_configuration_file(path)
                 if isinstance(conf, DictConfig):
                     yield conf
                 else:
@@ -272,22 +273,30 @@ class Application:
             log.addHandler(output)
             log.setLevel(logging.INFO)
 
-    def yaml_configuration(self, mask_base: bool = True, mask_secrets: bool = True) -> str:
+    def masked_configuration(
+        self,
+        *,
+        mask_base: bool = True,
+        mask_secrets: bool = True,
+        mask_keys: List[str] = [],
+    ) -> DictConfig:
         """Get the configuration as yaml string
 
         :param mask_base: Whether to mask "base" entry
-        :return: Configuration as string (yaml)
+        :param mask_secrets: Whether to mask secret keys
+        :param mask_keys: Which keys to mask
+        :return: Configuration copy with masked values
         """
-        configuration = self.configuration
-        if mask_base or mask_secrets:
-            configuration = configuration.copy()
+        config = self.configuration.copy()
         if mask_secrets:
-            configuration = Application.__mask_secrets(configuration)
+            config = Application.__mask_secrets(config)
         if mask_base:
-            configuration['base'] = {
-                key: list(choices.keys()) for key, choices in configuration.base.items()
-            }
-        return OmegaConf.to_yaml(configuration)
+            config['base'] = {key: list(choices.keys()) for key, choices in config.base.items()}
+        if mask_keys:
+            config = OmegaConf.masked_copy(
+                config, [k for k in config.keys() if k not in mask_keys and isinstance(k, str)]
+            )
+        return config
 
     @staticmethod
     def __mask_secrets(configuration):
@@ -296,7 +305,7 @@ class Application:
         for key in list(configuration):
             if isinstance(key, str) and any(mask(key) for mask in SECRET_MASKS):
                 configuration[key] = '*****'
-            elif isinstance(configuration[key], (Dict, DictConfig)):
+            elif isinstance(configuration[key], (Dict, DictConfig, dict)):
                 configuration[key] = Application.__mask_secrets(configuration[key])
         return configuration
 

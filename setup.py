@@ -41,5 +41,6 @@ setuptools.setup(
         'color': ['colorama'],
         'dotenv': ['python-dotenv'],
         'invoke': ['invoke'],
+        'toml': ['toml'],
     },
 )
