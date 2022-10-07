@@ -93,7 +93,7 @@ class Application:
             assert self.__config is not None
         return self.__config
 
-    def _get_possible_configuration_paths(self) -> Iterable[str]:
+    def _get_possible_configuration_paths(self, additional_paths=[]) -> Iterable[str]:
         """List of paths where to find configuration files"""
         name = self.name
         is_windows = sys.platform.startswith('win')
@@ -108,6 +108,7 @@ class Application:
             if path and '$' not in path:
                 for ext in load_file.SUPPORTED_EXTENSIONS:
                     yield path.format(name + '.' + ext)
+        yield from additional_paths
 
     def _load_dotenv(self, load_dotenv: Optional[bool] = None):
         """Load dotenv variables (optionally)"""
@@ -145,6 +146,7 @@ class Application:
 
     def _get_configurations(
         self,
+        configuration_paths: List[str] = [],
         env_prefixes: Union[bool, Iterable[str]] = True,
     ) -> Iterable[DictConfig]:
         """List of all configurations that can be loaded automatically
@@ -164,14 +166,15 @@ class Application:
         yield default_configuration
         yield self._app_configuration()
         # Read files
-        for path in self._get_possible_configuration_paths():
-            if os.path.isfile(path):
-                _log.debug('Load configuration from %s', path)
-                conf = load_file.read_configuration_file(path)
-                if isinstance(conf, DictConfig):
-                    yield conf
-                else:
-                    yield from conf
+        for path in self._get_possible_configuration_paths(configuration_paths):
+            if not (path in configuration_paths or os.path.isfile(path)):
+                continue
+            _log.debug('Load configuration from %s', path)
+            conf = load_file.read_configuration_file(path)
+            if isinstance(conf, DictConfig):
+                yield conf
+            else:
+                yield from conf
         # Environment
         prefixes: Optional[Tuple[str, ...]]
         if env_prefixes is True:
@@ -196,6 +199,7 @@ class Application:
         *,
         load_dotenv: Optional[bool] = None,
         env_prefixes: Union[bool, Iterable[str]] = True,
+        configuration_paths: List[str] = [],
         resolve_configuration: bool = True,
         setup_logging: bool = True,
     ) -> None:
@@ -223,7 +227,12 @@ class Application:
 
         # Load and merge configurations
         self._load_dotenv(load_dotenv=load_dotenv)
-        configurations = list(self._get_configurations(env_prefixes=env_prefixes))
+        configurations = list(
+            self._get_configurations(
+                env_prefixes=env_prefixes,
+                configuration_paths=configuration_paths,
+            )
+        )
         if self.parsed:
             configurations.extend(self.parsed.configurations())
         self.__config = cast(DictConfig, OmegaConf.merge(*configurations))
