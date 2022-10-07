@@ -44,23 +44,14 @@ To run an application, you need...
             version='0.1',
         )
 
-## Secrets
+During an interactive session, you can set the application in the current
+context.
 
-When showing the configuration, by default configuration keys which are
-secrets, keys or passwords will be masked.
-Another good practice is to have a file containing the password which
-you can retrieve using `alphaconf.get('secret_file', 'read_strip')`.
-
-## Invoke integration
-
-Just add the lines below to parameterize invoke.
-Note that the argument parsing to overwrite configuration will work only
-when the script is directly called.
-
-    ns = Collection()  # define the invoke configuration
-    import alphaconf.invoke
-    alphaconf.setup_configuration({'backup': 'all'})
-    alphaconf.invoke.run(__name__, ns)
+    # import other modules
+    import alphaconf
+    app = alphaconf.Application()
+    app.setup_configuration(configuration_paths=[])  # load other files
+    alphaconf.set_application(app)
 
 ## How the configuration is loaded
 
@@ -98,3 +89,21 @@ An argument `--select key=template` is a shortcut for
 So, `logging: ${oc.select:base.logging.default}` resolves to the configuration
 dict defined in base.logging.default and you can select it using
 `--select logging=default`.
+
+## Secrets
+
+When showing the configuration, by default configuration keys which are
+secrets, keys or passwords will be masked.
+Another good practice is to have a file containing the password which
+you can retrieve using `alphaconf.get('secret_file', 'read_strip')`.
+
+## Invoke integration
+
+Just add the lines below to parameterize invoke.
+Note that the argument parsing to overwrite configuration will work only
+when the script is directly called.
+
+    ns = Collection()  # define the invoke configuration
+    import alphaconf.invoke
+    alphaconf.setup_configuration({'backup': 'all'})
+    alphaconf.invoke.run(__name__, ns)
