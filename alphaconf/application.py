@@ -93,7 +93,7 @@ class Application:
             assert self.__config is not None
         return self.__config
 
-    def _get_possible_configuration_paths(self) -> Iterable[str]:
+    def _get_possible_configuration_paths(self, additional_paths=[]) -> Iterable[str]:
         """List of paths where to find configuration files"""
         name = self.name
         is_windows = sys.platform.startswith('win')
@@ -108,6 +108,7 @@ class Application:
             if path and '$' not in path:
                 for ext in load_file.SUPPORTED_EXTENSIONS:
                     yield path.format(name + '.' + ext)
+        yield from additional_paths
 
     def _load_dotenv(self, load_dotenv: Optional[bool] = None):
         """Load dotenv variables (optionally)"""
@@ -146,6 +147,7 @@ class Application:
 
     def _get_configurations(
         self,
+        configuration_paths: List[str] = [],
         env_prefixes: Union[bool, Iterable[str]] = True,
     ) -> Iterable[DictConfig]:
         """List of all configurations that can be loaded automatically
@@ -165,14 +167,15 @@ class Application:
         yield default_configuration
         yield self._app_configuration()
         # Read files
-        for path in self._get_possible_configuration_paths():
-            if os.path.isfile(path):
-                _log.debug('Load configuration from %s', path)
-                conf = load_file.read_configuration_file(path)
-                if isinstance(conf, DictConfig):
-                    yield conf
-                else:
-                    yield from conf
+        for path in self._get_possible_configuration_paths(configuration_paths):
+            if not (path in configuration_paths or os.path.isfile(path)):
+                continue
+            _log.debug('Load configuration from %s', path)
+            conf = load_file.read_configuration_file(path)
+            if isinstance(conf, DictConfig):
+                yield conf
+            else:
+                yield from conf
         # Environment
         prefixes: Optional[Tuple[str, ...]]
         if env_prefixes is True:
@@ -197,6 +200,7 @@ class Application:
         *,
         load_dotenv: Optional[bool] = None,
         env_prefixes: Union[bool, Iterable[str]] = True,
+        configuration_paths: List[str] = [],
         resolve_configuration: bool = True,
         setup_logging: bool = True,
     ) -> None:
@@ -224,7 +228,12 @@ class Application:
 
         # Load and merge configurations
         self._load_dotenv(load_dotenv=load_dotenv)
-        configurations = list(self._get_configurations(env_prefixes=env_prefixes))
+        configurations = list(
+            self._get_configurations(
+                env_prefixes=env_prefixes,
+                configuration_paths=configuration_paths,
+            )
+        )
         if self.parsed:
             configurations.extend(self.parsed.configurations())
         self.__config = cast(DictConfig, OmegaConf.merge(*configurations))
@@ -279,8 +288,8 @@ class Application:
         *,
         mask_base: bool = True,
         mask_secrets: bool = True,
-        mask_keys: List[str] = [],
-    ) -> DictConfig:
+        mask_keys: List[str] = ['application.uuid'],
+    ) -> dict:
         """Get the configuration as yaml string
 
         :param mask_base: Whether to mask "base" entry
@@ -288,27 +297,38 @@ class Application:
         :param mask_keys: Which keys to mask
         :return: Configuration copy with masked values
         """
-        config = self.configuration.copy()
+        from . import SECRET_MASKS
+
+        config = cast(dict, OmegaConf.to_container(self.configuration))
         if mask_secrets:
-            config = Application.__mask_secrets(config)
-        if mask_base:
-            config['base'] = {key: list(choices.keys()) for key, choices in config.base.items()}
-        if mask_keys:
-            config = OmegaConf.masked_copy(
-                config, [k for k in config.keys() if k not in mask_keys and isinstance(k, str)]
+            config = Application.__mask_config(
+                config, lambda p: any(mask(p) for mask in SECRET_MASKS), lambda _: '*****'
             )
+        if mask_base and 'base' not in mask_keys:
+            config['base'] = Application.__mask_config(
+                config['base'],
+                lambda p: isinstance(OmegaConf.select(self.configuration, p), DictConfig),
+                lambda v: list(v) if isinstance(v, dict) else v,
+            )
+        if mask_keys:
+            config = Application.__mask_config(config, lambda p: p in mask_keys, lambda _: None)
         return config
 
     @staticmethod
-    def __mask_secrets(configuration):
-        from . import SECRET_MASKS
-
-        for key in list(configuration):
-            if isinstance(key, str) and any(mask(key) for mask in SECRET_MASKS):
-                configuration[key] = '*****'
-            elif isinstance(configuration[key], (Dict, DictConfig, dict)):
-                configuration[key] = Application.__mask_secrets(configuration[key])
-        return configuration
+    def __mask_config(config, check, replacement, path=''):
+        for key in list(config):
+            value = config[key]
+            if isinstance(value, (Dict, DictConfig, dict)):
+                config[key] = value = Application.__mask_config(
+                    value, check, replacement, path + key + '.'
+                )
+            if check(path + key):
+                value = replacement(value)
+                if value is None:
+                    del config[key]
+                else:
+                    config[key] = value
+        return config
 
     def print_help(self, *, usage=None, description=None, arguments=True):
         """Print the help message
