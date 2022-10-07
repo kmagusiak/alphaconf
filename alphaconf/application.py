@@ -287,8 +287,8 @@ class Application:
         *,
         mask_base: bool = True,
         mask_secrets: bool = True,
-        mask_keys: List[str] = [],
-    ) -> DictConfig:
+        mask_keys: List[str] = ['application.uuid'],
+    ) -> dict:
         """Get the configuration as yaml string
 
         :param mask_base: Whether to mask "base" entry
@@ -296,27 +296,38 @@ class Application:
         :param mask_keys: Which keys to mask
         :return: Configuration copy with masked values
         """
-        config = self.configuration.copy()
+        from . import SECRET_MASKS
+
+        config = cast(dict, OmegaConf.to_container(self.configuration, resolve=True))
         if mask_secrets:
-            config = Application.__mask_secrets(config)
-        if mask_base:
-            config['base'] = {key: list(choices.keys()) for key, choices in config.base.items()}
-        if mask_keys:
-            config = OmegaConf.masked_copy(
-                config, [k for k in config.keys() if k not in mask_keys and isinstance(k, str)]
+            config = Application.__mask_config(
+                config, lambda p: any(mask(p) for mask in SECRET_MASKS), lambda _: '*****'
             )
+        if mask_base and 'base' not in mask_keys:
+            config['base'] = Application.__mask_config(
+                config['base'],
+                lambda p: isinstance(OmegaConf.select(self.configuration, p), DictConfig),
+                lambda v: list(v) if isinstance(v, dict) else v,
+            )
+        if mask_keys:
+            config = Application.__mask_config(config, lambda p: p in mask_keys, lambda _: None)
         return config
 
     @staticmethod
-    def __mask_secrets(configuration):
-        from . import SECRET_MASKS
-
-        for key in list(configuration):
-            if isinstance(key, str) and any(mask(key) for mask in SECRET_MASKS):
-                configuration[key] = '*****'
-            elif isinstance(configuration[key], (Dict, DictConfig, dict)):
-                configuration[key] = Application.__mask_secrets(configuration[key])
-        return configuration
+    def __mask_config(config, check, replacement, path=''):
+        for key in list(config):
+            value = config[key]
+            if isinstance(value, (Dict, DictConfig, dict)):
+                config[key] = value = Application.__mask_config(
+                    value, check, replacement, path + key + '.'
+                )
+            if check(path + key):
+                value = replacement(value)
+                if value is None:
+                    del config[key]
+                else:
+                    config[key] = value
+        return config
 
     def print_help(self, *, usage=None, description=None, arguments=True):
         """Print the help message
