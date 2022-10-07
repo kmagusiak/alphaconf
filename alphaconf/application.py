@@ -298,7 +298,7 @@ class Application:
         """
         from . import SECRET_MASKS
 
-        config = cast(dict, OmegaConf.to_container(self.configuration, resolve=True))
+        config = cast(dict, OmegaConf.to_container(self.configuration))
         if mask_secrets:
             config = Application.__mask_config(
                 config, lambda p: any(mask(p) for mask in SECRET_MASKS), lambda _: '*****'
