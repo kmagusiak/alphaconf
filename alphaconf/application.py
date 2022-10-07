@@ -116,8 +116,9 @@ class Application:
         try:
             import dotenv
 
-            _log.debug('Loading dotenv')
-            dotenv.load_dotenv()
+            path = dotenv.find_dotenv(usecwd=True)
+            _log.debug('Loading dotenv: %s', path or '(none)')
+            dotenv.load_dotenv(path)
         except ModuleNotFoundError:
             if load_dotenv:
                 raise
