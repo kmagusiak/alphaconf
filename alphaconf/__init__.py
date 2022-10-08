@@ -12,6 +12,7 @@ from .application import Application, _log
 from .arg_parser import ArgumentError, ExitApplication
 from .type_resolvers import convert_to_type
 
+# TODO review help
 __doc__ = """AlphaConf
 
 Based on omegaconf, provide a simple way to declare and run your application
@@ -71,6 +72,11 @@ def set(**kw):
     configuration.reset(token)
 
 
+def select(container, key, type=None, *, default=None):
+    # TODO
+    pass
+
+
 def set_application(app: Application, merge: bool = False):
     """Set the application and its configuration
 
@@ -84,6 +90,7 @@ def set_application(app: Application, merge: bool = False):
     configuration.set(config)
 
 
+# TODO review defaults such as setup_logging
 def run(main: Callable, arguments=True, *, should_exit=True, app: Application = None, **config):
     """Run this application
 
