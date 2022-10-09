@@ -16,7 +16,7 @@ setuptools.setup(
     license="MIT",
     keywords="configuration omegaconf script",
     url="https://github.com/kmagusiak/alphaconf",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=['tests']),
     long_description=README.read_text(),
     long_description_content_type='text/markdown',
     # https://pypi.org/pypi?%3Aaction=list_classifiers
@@ -28,7 +28,6 @@ setuptools.setup(
     ],
     python_requires=">=3.8",
     setup_requires=[
-        'flake8',
         'setuptools_scm',
     ],
     use_scm_version={

@@ -19,6 +19,13 @@ while loading the configuration from various files and command line
 arguments.
 
 Use `alphaconf.get()` to read the current application's configuration.
+The application and configuration are stored in context vars which are set
+using the `run()` or the `set_application()` functions.
+Before, you setup the application configuration, you may want to register
+default configuration by using `setup_configuration()`.
+
+A simple application, should just call run to benefit from argument parsing,
+configuration load and logging setup.
 
     if __name__ == '__main__':
         alphaconf.run(main)
@@ -42,11 +49,14 @@ configuration: ContextVar[DictConfig] = ContextVar('configuration', default=Omeg
 _helpers: ContextVar[Dict[str, str]] = ContextVar('configuration_helpers', default={})
 
 
-def get(config_key: str, type=None, *, default=None) -> Any:
-    """Select a configuration item from the current application"""
-    conf = configuration.get()
-    if config_key:
-        c = OmegaConf.select(conf, config_key, throw_on_missing=True)
+def select(container, key: str, type=None, *, default=None) -> Any:
+    """Select a configuration item from the container"""
+    if isinstance(container, DictConfig):
+        conf = container
+    else:
+        conf = OmegaConf.create(container)
+    if key:
+        c = OmegaConf.select(conf, key, throw_on_missing=True)
     else:
         c = conf
     if isinstance(c, DictConfig):
@@ -58,6 +68,11 @@ def get(config_key: str, type=None, *, default=None) -> Any:
     return c
 
 
+def get(config_key: str, type=None, *, default=None) -> Any:
+    """Select a configuration item from the current configuration"""
+    return select(configuration.get(), config_key, type=type, default=default)
+
+
 @contextlib.contextmanager
 def set(**kw):
     """Update the configuration in a with block"""
@@ -65,6 +80,7 @@ def set(**kw):
         yield
         return
     config = configuration.get()
+    # merging 2 dict-like objects
     config = cast(DictConfig, OmegaConf.merge(config, kw))
     token = configuration.set(config)
     yield
@@ -80,6 +96,7 @@ def set_application(app: Application, merge: bool = False):
     application.set(app)
     config = app.configuration
     if merge:
+        # merging 2 DictConfig objects
         config = cast(DictConfig, OmegaConf.merge(configuration.get(), config))
     configuration.set(config)
 
@@ -87,12 +104,17 @@ def set_application(app: Application, merge: bool = False):
 def run(main: Callable, arguments=True, *, should_exit=True, app: Application = None, **config):
     """Run this application
 
+    If an application is not given, a new one will be created with configuration properties
+    taken from the config. Also, by default logging is set up.
+
     :param main: The main function to call
     :param arguments: List of arguments (default: True to read sys.argv)
     :param should_exit: Whether an exception should sys.exit (default: True)
-    :param config: Arguments passed to setup_configuration()
+    :param config: Arguments passed to Application.__init__() and Application.setup_configuration()
     :return: The result of main
     """
+    if 'setup_logging' not in config:
+        config['setup_logging'] = True
     if app is None:
         properties = {
             k: config.pop(k)
@@ -155,19 +177,24 @@ def setup_configuration(
 ):
     """Add a default configuration
 
-    :param conf: The configuration to add
+    :param conf: The configuration to merge into the global configuration
     :param helpers: Description of parameters used in argument parser helpers
     """
     # merge the configurations
     if isinstance(conf, DictConfig):
         config = conf
     else:
-        config = cast(DictConfig, OmegaConf.create(conf))
-    configuration.set(cast(DictConfig, OmegaConf.merge(configuration.get(), config)))
+        created_config = OmegaConf.create(conf)
+        if not (created_config and isinstance(created_config, DictConfig)):
+            raise ValueError('Expecting a non-empty dict configuration')
+        config = created_config
+    # merging 2 DictConfig
+    config = cast(DictConfig, OmegaConf.merge(configuration.get(), config))
+    configuration.set(config)
     # setup helpers
     for h_key in helpers:
         key = h_key.split('.', 1)[0]
-        if key not in config:
+        if not config or key not in config:
             raise ValueError('Invalid helper not in configuration [%s]' % key)
     _helpers.set({**_helpers.get(), **helpers})
 
@@ -208,7 +235,7 @@ def __alpha_configuration():
             'handlers': ['console'],
             'level': 'INFO',
         },
-        # change the default to keep module-level logging by default
+        # change the default to keep module-level logging
         'disable_existing_loggers': False,
     }
     logging_none = {
