@@ -202,7 +202,7 @@ class Application:
         env_prefixes: Union[bool, Iterable[str]] = True,
         configuration_paths: List[str] = [],
         resolve_configuration: bool = True,
-        setup_logging: bool = True,
+        setup_logging: bool = False,
     ) -> None:
         """Setup the application configuration
 

@@ -6,7 +6,6 @@ from omegaconf import OmegaConf
 SUPPORTED_EXTENSIONS = ['yaml', 'json']
 
 try:
-    # since python 3.11 (tomllib is available)
     import toml
 
     class TomlDecoderPrimitive(toml.TomlDecoder):
