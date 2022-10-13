@@ -24,7 +24,7 @@ exception: false
 
 
 def main():
-    """Demo application"""
+    """Simple demo of alphaconf"""
     # you can log extra values with formatters such as json, try:
     # ./example-simple.py logging.handlers.console.formatter=json
     logging.info('The app is running...', extra={'other': 'othervalue'})
@@ -50,5 +50,4 @@ if __name__ == '__main__':
         main,
         name='example',
         version='0.1',
-        description="Simple demo of alphaconf",
     )

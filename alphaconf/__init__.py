@@ -121,6 +121,17 @@ def run(main: Callable, arguments=True, *, should_exit=True, app: Application = 
             for k in ['name', 'version', 'description', 'short_description']
             if k in config
         }
+        # if we don't have a description, get it from the function's docs
+        if 'description' not in properties and main.__doc__:
+            description = main.__doc__.strip().split('\n', maxsplit=1)
+            if 'short_description' not in properties:
+                properties['short_description'] = description[0]
+            if len(description) > 1:
+                import textwrap
+
+                properties['description'] = description[0] + '\n' + textwrap.dedent(description[1])
+            else:
+                properties['description'] = properties['short_description']
         app = Application(**properties)
     try:
         app.setup_configuration(arguments, **config)
