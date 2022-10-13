@@ -3,8 +3,8 @@ name: Lint and test
 on:
   push:
     branches:
-      - "*"
-    tags-ignore: ["*"]
+      - "**"
+    tags-ignore: ["**"]
 
 jobs:
   lint:
@@ -45,3 +45,8 @@ jobs:
     - name: Run mypy
       run: |
         mypy --install-types --non-interactive .
+    - name: Run examples
+      run: |
+        ./example-simple.py
+        python example-inv.py -h
+
