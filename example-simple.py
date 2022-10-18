@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 import alphaconf
+import alphaconf.logging_util
 
 # adding a default configuration
 # these will be merged with the application
@@ -25,14 +26,20 @@ exception: false
 
 def main():
     """Simple demo of alphaconf"""
+    # you can set additional dynamic values in the logging
+    context_value = ['init']
+    alphaconf.logging_util.DynamicLogRecord.set_generator(lambda: context_value)
     # you can log extra values with formatters such as json, try:
     # ./example-simple.py logging.handlers.console.formatter=json
     logging.info('The app is running...', extra={'other': 'othervalue'})
+    context_value = None
+
     # get the application name from the configuration
     print('app:', alphaconf.configuration.get().application.name)
     # shortcut version to get a configuration value
     print('server.user:', alphaconf.get('server.user'))
     print('server.home', alphaconf.get('server.home', Path))
+
     # show configuration
     value = alphaconf.get('show')
     if value and (value := alphaconf.get(value)):
@@ -43,6 +50,7 @@ def main():
             raise RuntimeError("Asked to raise something")
         except Exception:
             logging.error("Just log something", exc_info=True)
+    context_value = 'finished'
 
 
 if __name__ == '__main__':

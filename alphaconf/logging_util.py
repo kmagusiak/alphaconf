@@ -41,8 +41,8 @@ def set_gmt(enable=True):
 class DynamicLogRecord(logging.LogRecord):
     """LogRecord which pre-pends a string from a generator function
 
-    You can set a generator function that will return a context_value that
-    will be available in the LogRecord.
+    You can set a generator function that will return a value that
+    will be available in the LogRecord as 'context'.
     """
 
     value_generator: Callable = lambda: ''
@@ -62,15 +62,18 @@ class DynamicLogRecord(logging.LogRecord):
         super().__init__(*args, **kw)
         value = type(self).value_generator()
         if value is None:
-            self.context_value = ''
+            self.context = ''
         else:
-            self.context_value = value
+            self.context = value
 
     def getMessage(self) -> str:  # noqa: N802
         msg = super().getMessage()
-        if self.context_value:
-            msg = "%s %s" % (self.context_value, msg)
+        if self.context:
+            msg = "%s %s" % (self.context, msg)
         return msg
+
+    def getRawMessage(self) -> str:  # noqa: N802
+        return super().getMessage()
 
 
 class ColorFormatter(Formatter):
@@ -110,16 +113,17 @@ class JSONFormatter(Formatter):
             d['exception'] = self.formatException(record.exc_info)
         if record.stack_info:
             d['stack_info'] = self.formatStack(record.stack_info)
-        other = {k: v for k, v in record.__dict__.items() if k not in _LOG_RECORD_FIELDS}
-        if other:
-            d['context'] = other
+        extra = {k: v for k, v in record.__dict__.items() if k not in _LOG_RECORD_FIELDS}
+        if extra:
+            d['extra'] = extra
         return json.dumps(d, check_circular=False, default=lambda v: str(v))
 
     def usesTime(self) -> bool:  # noqa: N802
         return True
 
     def formatMessage(self, record: LogRecord) -> str:  # noqa: N802
-        return record.getMessage()
+        getter = getattr(record, 'getRawMessage', record.getMessage)
+        return getter()
 
     def formatException(self, ei):  # noqa: N802
         if ei:
