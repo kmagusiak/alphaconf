@@ -48,7 +48,12 @@ class DynamicLogRecord(logging.LogRecord):
     value_generator: Callable = lambda: ''
 
     @classmethod
-    def set_generator(cls, generator, set_as_factory=True):
+    def set_generator(cls, generator: Callable, set_as_factory=True):
+        """Set the generator and LogRecordFactory
+
+        :param generator: A function to produce the string value
+        :param set_as_factory: Set the class as a log factory (default: true)
+        """
         cls.value_generator = generator
         if set_as_factory:
             logging.setLogRecordFactory(cls)
@@ -58,14 +63,12 @@ class DynamicLogRecord(logging.LogRecord):
         value = type(self).value_generator()
         if value is None:
             self.context_value = ''
-            self.context_show = False
         else:
-            self.context_value = str(value)
-            self.context_show = True
+            self.context_value = value
 
     def getMessage(self) -> str:  # noqa: N802
         msg = super().getMessage()
-        if self.context_show:
+        if self.context_value:
             msg = "%s %s" % (self.context_value, msg)
         return msg
 
@@ -107,9 +110,9 @@ class JSONFormatter(Formatter):
             d['exception'] = self.formatException(record.exc_info)
         if record.stack_info:
             d['stack_info'] = self.formatStack(record.stack_info)
-        extra = {k: v for k, v in record.__dict__.items() if k not in _LOG_RECORD_FIELDS}
-        if extra:
-            d['extra'] = extra
+        other = {k: v for k, v in record.__dict__.items() if k not in _LOG_RECORD_FIELDS}
+        if other:
+            d['context'] = other
         return json.dumps(d, check_circular=False, default=lambda v: str(v))
 
     def usesTime(self) -> bool:  # noqa: N802
