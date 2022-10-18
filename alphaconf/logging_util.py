@@ -3,7 +3,7 @@ import json
 import logging
 import traceback
 from logging import Formatter, LogRecord
-from typing import Any
+from typing import Any, Callable
 
 try:
     import colorama
@@ -36,6 +36,44 @@ def set_gmt(enable=True):
     import time
 
     Formatter.converter = time.gmtime if enable else time.localtime
+
+
+class DynamicLogRecord(logging.LogRecord):
+    """LogRecord which pre-pends a string from a generator function
+
+    You can set a generator function that will return a value that
+    will be available in the LogRecord as 'context'.
+    """
+
+    value_generator: Callable = lambda: ''
+
+    @classmethod
+    def set_generator(cls, generator: Callable, set_as_factory=True):
+        """Set the generator and LogRecordFactory
+
+        :param generator: A function to produce the string value
+        :param set_as_factory: Set the class as a log factory (default: true)
+        """
+        cls.value_generator = generator
+        if set_as_factory:
+            logging.setLogRecordFactory(cls)
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        value = type(self).value_generator()
+        if value is None:
+            self.context = ''
+        else:
+            self.context = value
+
+    def getMessage(self) -> str:  # noqa: N802
+        msg = super().getMessage()
+        if self.context:
+            msg = "%s %s" % (self.context, msg)
+        return msg
+
+    def getRawMessage(self) -> str:  # noqa: N802
+        return super().getMessage()
 
 
 class ColorFormatter(Formatter):
@@ -84,15 +122,14 @@ class JSONFormatter(Formatter):
         return True
 
     def formatMessage(self, record: LogRecord) -> str:  # noqa: N802
-        return record.getMessage()
+        getter = getattr(record, 'getRawMessage', record.getMessage)
+        return getter()
 
     def formatException(self, ei):  # noqa: N802
-        return (
-            {
+        if ei:
+            return {
                 'type': ei[0].__name__,
                 'message': str(ei[1]),
                 'detail': traceback.format_exception(*ei),
             }
-            if ei
-            else {}
-        )
+        return {}
