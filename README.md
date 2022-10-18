@@ -6,6 +6,7 @@ A small library to ease writing parameterized scripts.
 The goal is to execute a single script and be able to overwrite the parameters
 easily.
 The configuration is based on [omegaconf](https://omegaconf.readthedocs.io/).
+Optionally, loading from toml is possible.
 
 To run multiple related tasks, there is an integration with
 [invoke](https://www.pyinvoke.org).
@@ -48,10 +49,9 @@ During an interactive session, you can set the application in the current
 context.
 
     # import other modules
-    import alphaconf
-    app = alphaconf.Application()
-    app.setup_configuration(configuration_paths=[])  # load other files
-    alphaconf.set_application(app)
+    import alphaconf.interactive
+    alphaconf.interactive.mount()
+    alphaconf.interactive.load_configuration_file('path')
 
 ## How the configuration is loaded
 
