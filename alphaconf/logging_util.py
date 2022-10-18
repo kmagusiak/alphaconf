@@ -10,6 +10,14 @@ try:
 except ImportError:
     colorama = None
 
+__doc__ = """Logging utils
+
+- set_gmt: set the GMT time for time in logging
+- ColorFormatter: add colors
+- JSONFormatter: dump the message and attributes of the log record as JSON
+"""
+
+
 """Colors used by Colorama (if installed)"""
 LOG_COLORS = {}
 if colorama:
