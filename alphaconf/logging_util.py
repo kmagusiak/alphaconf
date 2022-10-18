@@ -3,7 +3,7 @@ import json
 import logging
 import traceback
 from logging import Formatter, LogRecord
-from typing import Any
+from typing import Any, Callable
 
 try:
     import colorama
@@ -36,6 +36,38 @@ def set_gmt(enable=True):
     import time
 
     Formatter.converter = time.gmtime if enable else time.localtime
+
+
+class DynamicLogRecord(logging.LogRecord):
+    """LogRecord which pre-pends a string from a generator function
+
+    You can set a generator function that will return a context_value that
+    will be available in the LogRecord.
+    """
+
+    value_generator: Callable = lambda: ''
+
+    @classmethod
+    def set_generator(cls, generator, set_as_factory=True):
+        cls.value_generator = generator
+        if set_as_factory:
+            logging.setLogRecordFactory(cls)
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        value = type(self).value_generator()
+        if value is None:
+            self.context_value = ''
+            self.context_show = False
+        else:
+            self.context_value = str(value)
+            self.context_show = True
+
+    def getMessage(self) -> str:  # noqa: N802
+        msg = super().getMessage()
+        if self.context_show:
+            msg = "%s %s" % (self.context_value, msg)
+        return msg
 
 
 class ColorFormatter(Formatter):
@@ -87,12 +119,10 @@ class JSONFormatter(Formatter):
         return record.getMessage()
 
     def formatException(self, ei):  # noqa: N802
-        return (
-            {
+        if ei:
+            return {
                 'type': ei[0].__name__,
                 'message': str(ei[1]),
                 'detail': traceback.format_exception(*ei),
             }
-            if ei
-            else {}
-        )
+        return {}
