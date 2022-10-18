@@ -2,7 +2,7 @@ import invoke
 from omegaconf import OmegaConf
 
 from . import run as _application_run
-from .application import Application, arg_parser
+from .internal.application import Application, arg_parser
 
 
 class InvokeAction(arg_parser.Action):

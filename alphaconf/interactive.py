@@ -1,8 +1,8 @@
 import logging
 
 from . import set_application, setup_configuration
-from .application import Application
-from .load_file import read_configuration_file
+from .internal.application import Application
+from .internal.load_file import read_configuration_file
 
 __doc__ = """Helpers for interactive applications."""
 __all__ = ['mount', 'read_configuration_file', 'load_configuration_file']

@@ -8,9 +8,9 @@ from typing import Any, Callable, Dict, Union, cast
 
 from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
 
-from .application import Application, _log
-from .arg_parser import ArgumentError, ExitApplication
-from .type_resolvers import convert_to_type
+from .internal.application import Application, _log
+from .internal.arg_parser import ArgumentError, ExitApplication
+from .internal.type_resolvers import convert_to_type
 
 __doc__ = """AlphaConf
 
@@ -59,7 +59,7 @@ def select(container, key: str, type=None, *, default=None) -> Any:
         c = OmegaConf.select(conf, key, throw_on_missing=True)
     else:
         c = conf
-    if isinstance(c, DictConfig):
+    if isinstance(c, DictConfig) and type != DictConfig:
         c = OmegaConf.to_object(c)
     elif c is None:
         return default

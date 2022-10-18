@@ -2,7 +2,7 @@ import pytest
 from omegaconf import DictConfig, OmegaConf
 
 import alphaconf
-from alphaconf.application import Application
+from alphaconf.internal.application import Application
 
 
 def test_default_app_and_configuration():

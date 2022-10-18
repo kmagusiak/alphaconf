@@ -47,7 +47,7 @@ class Application:
         self.__initialize_parser()
 
     def __initialize_parser(self):
-        from . import _helpers
+        from .. import _helpers
 
         self.parsed = None
         self.argument_parser = parser = arg_parser.ArgumentParser()
@@ -160,7 +160,7 @@ class Application:
         :param env_prefixes: Prefixes of environment variables to load
         :return: OmegaConf configurations (to be merged)
         """
-        from . import configuration as ctx_configuration
+        from .. import configuration as ctx_configuration
 
         _log.debug('Loading default and app configurations')
         default_configuration = ctx_configuration.get()
@@ -266,7 +266,7 @@ class Application:
         """
         import logging
 
-        from . import logging_util
+        from .. import logging_util
 
         logging_util.set_gmt()
         log = logging.getLogger()
@@ -297,7 +297,7 @@ class Application:
         :param mask_keys: Which keys to mask
         :return: Configuration copy with masked values
         """
-        from . import SECRET_MASKS
+        from .. import SECRET_MASKS
 
         config = cast(dict, OmegaConf.to_container(self.configuration))
         if mask_secrets:

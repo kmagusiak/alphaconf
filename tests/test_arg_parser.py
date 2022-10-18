@@ -1,7 +1,7 @@
 import pytest
 from omegaconf import OmegaConf
 
-import alphaconf.arg_parser as ap
+import alphaconf.internal.arg_parser as ap
 
 
 @pytest.fixture(scope='function')
