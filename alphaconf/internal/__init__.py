@@ -21,11 +21,16 @@ class Application:
     """
 
     __config: Optional[DictConfig]
-    properties: Dict[str, str]
+    __name: str
+    version: Optional[str]
+    description: Optional[str]
+    short_description: Optional[str]
     parsed: Optional[arg_parser.ParseResult]
     argument_parser: arg_parser.ArgumentParser
 
-    def __init__(self, **properties) -> None:
+    def __init__(
+        self, *, name=None, version=None, description=None, short_description=None
+    ) -> None:
         """Initialize the application.
 
         Properties:
@@ -37,9 +42,10 @@ class Application:
         :param properties: Properties for the app
         """
         self.__config = None  # initialize
-        if not properties.get('name'):
-            properties['name'] = self.__get_default_name()
-        self.properties = properties
+        self.__name = name or self.__get_default_name()
+        self.version = version
+        self.description = description
+        self.short_description = short_description
         # Add argument parser
         self.__initialize_parser()
 
@@ -68,7 +74,7 @@ class Application:
             {
                 'application': {
                     'name': self.name,
-                    'version': self.properties.get('version'),
+                    'version': self.version or '',
                     'uuid': str(uuid.uuid4()),
                 },
             }
@@ -77,7 +83,7 @@ class Application:
     @property
     def name(self) -> str:
         """Get the name of the application"""
-        return self.properties['name']
+        return self.__name
 
     @property
     def configuration(self) -> DictConfig:
@@ -337,14 +343,13 @@ class Application:
     def print_help(self, *, usage=None, description=None, arguments=True):
         """Print the help message
         Set the arguments to False to disable printing them."""
-        p = self.properties
         if usage is None:
-            usage = f"usage: {p.get('name') or 'app'}"
+            usage = f"usage: {self.name or 'app'}"
             usage += " [arguments] [key=value ...]"
         if isinstance(usage, str):
             print(usage)
         if description is None:
-            description = p.get('description')
+            description = self.description
         if isinstance(description, str):
             print()
             print(description)
