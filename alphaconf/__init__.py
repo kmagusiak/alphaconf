@@ -6,11 +6,11 @@ import sys
 from contextvars import ContextVar
 from typing import Any, Callable, Dict, Union, cast
 
-from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
+from omegaconf import Container, DictConfig, MissingMandatoryValue, OmegaConf
 
-from .application import Application, _log
-from .arg_parser import ArgumentError, ExitApplication
-from .type_resolvers import convert_to_type
+from .internal import Application
+from .internal.arg_parser import ArgumentError, ExitApplication
+from .internal.type_resolvers import convert_to_type
 
 __doc__ = """AlphaConf
 
@@ -49,33 +49,50 @@ configuration: ContextVar[DictConfig] = ContextVar('configuration', default=Omeg
 _helpers: ContextVar[Dict[str, str]] = ContextVar('configuration_helpers', default={})
 
 
-def select(container, key: str, type=None, *, default=None) -> Any:
-    """Select a configuration item from the container"""
-    if isinstance(container, DictConfig):
-        conf = container
+def select(container: Any, key: str, type=None, *, default=None, required: bool = False) -> Any:
+    """Select a configuration item from the container
+
+    :param container: The container to select from (Container, dict, etc.)
+    :param key: The selection key
+    :param type: The type of the object to return
+    :param default: The default value is selected value is None
+    :param required: Raise MissingMandatoryValue if the selected value and default are None
+    :return: The selected value in the container
+    """
+    c: Any
+    # make sure we have a container and select from it
+    if isinstance(container, Container):
+        c = container
     else:
-        conf = OmegaConf.create(container)
-    if key:
-        c = OmegaConf.select(conf, key, throw_on_missing=True)
-    else:
-        c = conf
-    if isinstance(c, DictConfig):
-        c = OmegaConf.to_object(c)
-    elif c is None:
+        c = OmegaConf.create(container)
+    c = OmegaConf.select(c, key, throw_on_missing=required)
+    # handle empty result
+    if c is None:
+        if default is None and required:
+            raise MissingMandatoryValue("Key not found: %s" % key)
         return default
-    if type and c is not None:
+    # check the returned type and convert when necessary
+    if type is not None and isinstance(c, type):
+        return c
+    if isinstance(c, Container):
+        c = OmegaConf.to_object(c)
+    if type is not None:
         c = convert_to_type(c, type)
     return c
 
 
-def get(config_key: str, type=None, *, default=None) -> Any:
+def get(config_key: str, type=None, *, default=None, required: bool = False) -> Any:
     """Select a configuration item from the current configuration"""
-    return select(configuration.get(), config_key, type=type, default=default)
+    return select(configuration.get(), config_key, type=type, default=default, required=required)
 
 
 @contextlib.contextmanager
 def set(**kw):
-    """Update the configuration in a with block"""
+    """Update the configuration in a with block
+
+    with alphaconf.set(a=value):
+        assert alphaconf.get('a') == value
+    """
     if not kw:
         yield
         return
@@ -113,6 +130,8 @@ def run(main: Callable, arguments=True, *, should_exit=True, app: Application = 
     :param config: Arguments passed to Application.__init__() and Application.setup_configuration()
     :return: The result of main
     """
+    from .internal import application_log as log
+
     if 'setup_logging' not in config:
         config['setup_logging'] = True
     if app is None:
@@ -136,17 +155,17 @@ def run(main: Callable, arguments=True, *, should_exit=True, app: Application = 
     try:
         app.setup_configuration(arguments, **config)
     except MissingMandatoryValue as e:
-        _log.error(e)
+        log.error(e)
         if should_exit:
             sys.exit(99)
         raise
     except ArgumentError as e:
-        _log.error(e)
+        log.error(e)
         if should_exit:
             sys.exit(2)
         raise
     except ExitApplication:
-        _log.debug('Normal application exit')
+        log.debug('Normal application exit')
         if should_exit:
             sys.exit()
         return
@@ -155,7 +174,7 @@ def run(main: Callable, arguments=True, *, should_exit=True, app: Application = 
         return context.run(__run_application, app=app, main=main, exc_info=should_exit)
     except Exception:
         if should_exit:
-            _log.debug('Exit application')
+            log.debug('Exit application')
             sys.exit(1)
         raise
 

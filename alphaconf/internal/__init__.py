@@ -8,12 +8,9 @@ from omegaconf import DictConfig, OmegaConf
 
 from . import arg_parser, load_file
 
-__doc__ = """Application
+__doc__ = """Representation of an application with its configuration."""
 
-Representation of an application with its configuration.
-"""
-
-_log = logging.getLogger(__name__)
+application_log = logging.getLogger(__name__)
 
 
 class Application:
@@ -47,7 +44,7 @@ class Application:
         self.__initialize_parser()
 
     def __initialize_parser(self):
-        from . import _helpers
+        from .. import _helpers
 
         self.parsed = None
         self.argument_parser = parser = arg_parser.ArgumentParser()
@@ -89,7 +86,7 @@ class Application:
             self.setup_configuration(
                 arguments=False, resolve_configuration=False, setup_logging=False
             )
-            _log.info('alphaconf initialized')
+            application_log.info('alphaconf initialized')
             assert self.__config is not None
         return self.__config
 
@@ -118,12 +115,12 @@ class Application:
             import dotenv
 
             path = dotenv.find_dotenv(usecwd=True)
-            _log.debug('Loading dotenv: %s', path or '(none)')
+            application_log.debug('Loading dotenv: %s', path or '(none)')
             dotenv.load_dotenv(path)
         except ModuleNotFoundError:
             if load_dotenv:
                 raise
-            _log.debug('dotenv is not installed')
+            application_log.debug('dotenv is not installed')
 
     def __load_environ(self, prefixes: Iterable[str]) -> DictConfig:
         """Load environment variables into a dict configuration"""
@@ -160,9 +157,9 @@ class Application:
         :param env_prefixes: Prefixes of environment variables to load
         :return: OmegaConf configurations (to be merged)
         """
-        from . import configuration as ctx_configuration
+        from .. import configuration as ctx_configuration
 
-        _log.debug('Loading default and app configurations')
+        application_log.debug('Loading default and app configurations')
         default_configuration = ctx_configuration.get()
         yield default_configuration
         yield self._app_configuration()
@@ -170,7 +167,7 @@ class Application:
         for path in self._get_possible_configuration_paths(configuration_paths):
             if not (path in configuration_paths or os.path.isfile(path)):
                 continue
-            _log.debug('Load configuration from %s', path)
+            application_log.debug('Load configuration from %s', path)
             conf = load_file.read_configuration_file(path)
             if isinstance(conf, DictConfig):
                 yield conf
@@ -179,7 +176,7 @@ class Application:
         # Environment
         prefixes: Optional[Tuple[str, ...]]
         if env_prefixes is True:
-            _log.debug('Detecting accepted env prefixes')
+            application_log.debug('Detecting accepted env prefixes')
             default_keys = {str(k) for k in default_configuration.keys()}
             prefixes = tuple(
                 k.upper() + '_'
@@ -191,7 +188,7 @@ class Application:
         else:
             prefixes = None
         if prefixes:
-            _log.debug('Loading env configuration from prefixes %s' % (prefixes,))
+            application_log.debug('Loading env configuration from prefixes %s' % (prefixes,))
             yield self.__load_environ(prefixes)
 
     def setup_configuration(
@@ -217,7 +214,7 @@ class Application:
         """
         if self.__config is not None:
             raise RuntimeError('Configuration already set')
-        _log.debug('Start setup application')
+        application_log.debug('Start setup application')
 
         # Parse arguments
         if arguments is True:
@@ -237,7 +234,7 @@ class Application:
         if self.parsed:
             configurations.extend(self.parsed.configurations())
         self.__config = cast(DictConfig, OmegaConf.merge(*configurations))
-        _log.debug('Merged %d configurations', len(configurations))
+        application_log.debug('Merged %d configurations', len(configurations))
 
         # Handle the result
         self._handle_parsed_result()
@@ -248,7 +245,7 @@ class Application:
 
         # Logging
         if setup_logging:
-            _log.debug('Setup logging')
+            application_log.debug('Setup logging')
             self._setup_logging()
 
     def _handle_parsed_result(self):
@@ -266,7 +263,7 @@ class Application:
         """
         import logging
 
-        from . import logging_util
+        from .. import logging_util
 
         logging_util.set_gmt()
         log = logging.getLogger()
@@ -297,7 +294,7 @@ class Application:
         :param mask_keys: Which keys to mask
         :return: Configuration copy with masked values
         """
-        from . import SECRET_MASKS
+        from .. import SECRET_MASKS
 
         config = cast(dict, OmegaConf.to_container(self.configuration))
         if mask_secrets:

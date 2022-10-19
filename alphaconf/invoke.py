@@ -2,7 +2,16 @@ import invoke
 from omegaconf import OmegaConf
 
 from . import run as _application_run
-from .application import Application, arg_parser
+from .internal import Application, arg_parser
+
+__doc__ = """Invoke wrapper for an application
+
+Adding the following lines at the end of the file adds support for alphaconf
+to inject the configuration.
+
+    ns = Collection(...)
+    alphaconf.invoke.run(__name__, ns)
+"""
 
 
 class InvokeAction(arg_parser.Action):
