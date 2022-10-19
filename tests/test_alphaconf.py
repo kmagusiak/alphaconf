@@ -2,7 +2,6 @@ import pytest
 from omegaconf import DictConfig, OmegaConf
 
 import alphaconf
-from alphaconf.internal.application import Application
 
 
 def test_default_app_and_configuration():
@@ -36,7 +35,7 @@ def test_run_application_app(application):
 
 def test_run_application_help(capsys):
     alphaconf.setup_configuration({'helptest': 1}, {'helptest': 'HELPER_TEST'})
-    application = Application(name='myapp', description='my test description')
+    application = alphaconf.Application(name='myapp', description='my test description')
     r = alphaconf.run(lambda: 1, app=application, arguments=['--help'], should_exit=False)
     assert r is None
     captured = capsys.readouterr()
@@ -89,7 +88,7 @@ def test_set_application(application):
 def test_setup_configuration():
     alphaconf.setup_configuration({'setup': 'config'}, helpers={'setup': 'help1'})
     assert alphaconf.get('setup') == 'config'
-    helpers = Application().argument_parser.help_messages
+    helpers = alphaconf.Application().argument_parser.help_messages
     assert helpers.get('setup') == 'help1'
 
 
@@ -103,6 +102,7 @@ def test_setup_configuration_invalid():
 
 
 def test_set():
+    # test that the set() is active only within the block
     value = '124'
     default = '125-def'
     assert alphaconf.get('value', default=default) is default
@@ -115,7 +115,7 @@ def test_secret_masks():
     masks = list(alphaconf.SECRET_MASKS)
     try:
         alphaconf.setup_configuration({'a': {'mypassword': 's3cret'}})
-        conf = Application().masked_configuration()
+        conf = alphaconf.Application().masked_configuration()
         assert conf['a']['mypassword'] != 's3cret'
     finally:
         alphaconf.SECRET_MASKS.clear()

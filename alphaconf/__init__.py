@@ -6,7 +6,7 @@ import sys
 from contextvars import ContextVar
 from typing import Any, Callable, Dict, Union, cast
 
-from omegaconf import DictConfig, MissingMandatoryValue, OmegaConf
+from omegaconf import Container, DictConfig, MissingMandatoryValue, OmegaConf
 
 from .internal.application import Application, _log
 from .internal.arg_parser import ArgumentError, ExitApplication
@@ -49,33 +49,50 @@ configuration: ContextVar[DictConfig] = ContextVar('configuration', default=Omeg
 _helpers: ContextVar[Dict[str, str]] = ContextVar('configuration_helpers', default={})
 
 
-def select(container, key: str, type=None, *, default=None) -> Any:
-    """Select a configuration item from the container"""
-    if isinstance(container, DictConfig):
-        conf = container
+def select(container: Any, key: str, type=None, *, default=None, required: bool = False) -> Any:
+    """Select a configuration item from the container
+
+    :param container: The container to select from (Container, dict, etc.)
+    :param key: The selection key
+    :param type: The type of the object to return
+    :param default: The default value is selected value is None
+    :param required: Raise MissingMandatoryValue if the selected value and default are None
+    :return: The selected value in the container
+    """
+    c: Any
+    # make sure we have a container and select from it
+    if isinstance(container, Container):
+        c = container
     else:
-        conf = OmegaConf.create(container)
-    if key:
-        c = OmegaConf.select(conf, key, throw_on_missing=True)
-    else:
-        c = conf
-    if isinstance(c, DictConfig) and type != DictConfig:
-        c = OmegaConf.to_object(c)
-    elif c is None:
+        c = OmegaConf.create(container)
+    c = OmegaConf.select(c, key, throw_on_missing=required)
+    # handle empty result
+    if c is None:
+        if default is None and required:
+            raise MissingMandatoryValue("Key not found: %s" % key)
         return default
-    if type and c is not None:
+    # check the returned type and convert when necessary
+    if type is not None and isinstance(c, type):
+        return c
+    if isinstance(c, Container):
+        c = OmegaConf.to_object(c)
+    if type is not None:
         c = convert_to_type(c, type)
     return c
 
 
-def get(config_key: str, type=None, *, default=None) -> Any:
+def get(config_key: str, type=None, *, default=None, required: bool = False) -> Any:
     """Select a configuration item from the current configuration"""
-    return select(configuration.get(), config_key, type=type, default=default)
+    return select(configuration.get(), config_key, type=type, default=default, required=required)
 
 
 @contextlib.contextmanager
 def set(**kw):
-    """Update the configuration in a with block"""
+    """Update the configuration in a with block
+
+    with alphaconf.set(a=value):
+        assert alphaconf.get('a') == value
+    """
     if not kw:
         yield
         return
