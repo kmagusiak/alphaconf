@@ -37,7 +37,7 @@ if colorama:
 _LOG_RECORD_FIELDS = set(logging.makeLogRecord({}).__dict__.keys())
 
 
-def set_gmt(enable=True):
+def set_gmt(enable: bool = True):
     """Set GMT time for logging formatters
 
     :param enable: Whether to set GMT or localtime
@@ -57,7 +57,7 @@ class DynamicLogRecord(logging.LogRecord):
     value_generator: Callable = lambda: ''
 
     @classmethod
-    def set_generator(cls, generator: Callable, set_as_factory=True):
+    def set_generator(cls, generator: Callable, set_as_factory: bool = True):
         """Set the generator and LogRecordFactory
 
         :param generator: A function to produce the string value

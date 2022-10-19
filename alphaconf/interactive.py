@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 from . import set_application, setup_configuration
 from .internal import Application
@@ -8,7 +9,7 @@ __doc__ = """Helpers for interactive applications."""
 __all__ = ['mount', 'read_configuration_file', 'load_configuration_file']
 
 
-def mount(configuration_paths=[], setup_logging=True):
+def mount(configuration_paths: List = [str], setup_logging: bool = True):
     """Mount a new application with a setup configuration"""
     app = Application(name='interactive')
     app.setup_configuration(
@@ -18,7 +19,7 @@ def mount(configuration_paths=[], setup_logging=True):
     logging.info('Mounted interactive application')
 
 
-def load_configuration_file(path):
+def load_configuration_file(path: str):
     """Read a configuration file and add it to the context configuration"""
     config = read_configuration_file(path)
     setup_configuration(config)

@@ -1,14 +1,14 @@
 import itertools
-from typing import Dict, Iterable, List, Optional, Union, cast
+from typing import Dict, Iterable, List, Optional, Tuple, Type, Union, cast
 
 from omegaconf import DictConfig, OmegaConf
 
 
-def _split(value, char="="):
+def _split(value: str, char: str = "=") -> Tuple[str, Optional[str]]:
     vs = value.split(char, 1)
     if len(vs) < 2:
-        vs.append(None)
-    return vs
+        return vs[0], None
+    return vs[0], vs[1]
 
 
 class ExitApplication(BaseException):
@@ -29,17 +29,17 @@ class ArgumentError(RuntimeError):
 class Action:
     """Action for parsing"""
 
-    def __init__(self, *, metavar=None, help=None) -> None:
+    def __init__(self, *, metavar: Optional[str] = None, help: Optional[str] = None) -> None:
         self.metavar = metavar
         self.help = help
         self.has_arg = bool(metavar)
 
-    def check_argument(self, value):
+    def check_argument(self, value: Optional[str]) -> Optional[str]:
         if not value and self.metavar:
             return "Required value"
         return None
 
-    def handle(self, result, value):
+    def handle(self, result: "ParseResult", value: Optional[str]) -> str:
         if result.result:
             return "Result is already set"
         result.result = self
@@ -88,7 +88,7 @@ class ConfigurationAction(Action):
 
     def check_argument(self, value):
         if self.metavar and '=' in self.metavar and '=' not in value:
-            return 'Argument should be in format ' + (self.metavar)
+            return 'Argument should be in format %s' % self.metavar
         return super().check_argument(value)
 
     def handle(self, result, value):
@@ -226,7 +226,7 @@ class ArgumentParser:
         result.rest += arguments
         return result
 
-    def add_argument(self, action_class, *names, **kw):
+    def add_argument(self, action_class: Type[Action], *names: str, **kw):
         """Add an argument handler
 
         :param action_class: Action(kw) will be added as a handler

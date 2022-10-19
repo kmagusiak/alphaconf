@@ -4,7 +4,7 @@ import logging
 import re
 import sys
 from contextvars import ContextVar
-from typing import Any, Callable, Dict, Union, cast
+from typing import Any, Callable, Dict, List, Union, cast
 
 from omegaconf import Container, DictConfig, MissingMandatoryValue, OmegaConf
 
@@ -118,7 +118,14 @@ def set_application(app: Application, merge: bool = False):
     configuration.set(config)
 
 
-def run(main: Callable, arguments=True, *, should_exit=True, app: Application = None, **config):
+def run(
+    main: Callable,
+    arguments: Union[bool, List[str]] = True,
+    *,
+    should_exit: bool = True,
+    app: Application = None,
+    **config
+) -> Any:
     """Run this application
 
     If an application is not given, a new one will be created with configuration properties
@@ -179,7 +186,7 @@ def run(main: Callable, arguments=True, *, should_exit=True, app: Application = 
         raise
 
 
-def __run_application(app: Application, main: Callable, exc_info=True):
+def __run_application(app: Application, main: Callable, exc_info=True) -> Any:
     """Set the application and execute main"""
     set_application(app)
     app_log = logging.getLogger()
