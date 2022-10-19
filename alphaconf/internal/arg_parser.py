@@ -73,11 +73,10 @@ class VersionAction(Action):
     """Version action"""
 
     def run(self, app):
-        p = app.properties
-        prog = p.get('name')
-        version = p.get('version')
+        prog = app.name
+        version = app.version
         print(f"{prog} {version}")
-        desc = p.get('short_description')
+        desc = app.short_description
         if desc:
             print(desc)
         raise ExitApplication
@@ -289,7 +288,7 @@ def configure_parser(parser: ArgumentParser, *, app=None):
         '--help',
         help="Show the help",
     )
-    if app and app.properties.get('version'):
+    if app and app.version:
         parser.add_argument(
             VersionAction,
             '-V',

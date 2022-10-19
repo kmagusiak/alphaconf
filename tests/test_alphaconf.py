@@ -40,7 +40,7 @@ def test_run_application_help(capsys):
     assert 'usage:' in out[0]
     assert application.name in out[0]
     desc = '\n'.join(out[1:5])
-    assert application.properties['description'] in desc
+    assert application.description in desc
     assert 'HELPER_TEST' in captured.out
 
 
@@ -48,7 +48,7 @@ def test_run_application_version(capsys, application):
     alphaconf.run(lambda: 'n', app=application, arguments=['--version'], should_exit=False)
     captured = capsys.readouterr()
     out = captured.out
-    assert application.name + ' ' + application.properties['version'] in out
+    assert (application.name + ' ' + application.version) in out
 
 
 def test_run_application_show_configuration(capsys, application):
