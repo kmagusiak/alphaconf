@@ -9,9 +9,7 @@ def application():
     return alphaconf.Application(name='test', version='1.0.0', description='test description')
 
 
-def test_default_app_and_configuration():
-    with pytest.raises(LookupError):
-        alphaconf.application.get()
+def test_default_configuration():
     config = alphaconf.configuration.get()
     assert isinstance(config, DictConfig)
     assert 'base' in config
@@ -26,16 +24,9 @@ def test_run():
 
 def test_run_application_init():
     name = 'testinit'
+    assert alphaconf.get('application') is None
     r = alphaconf.run(lambda: alphaconf.get('application.name'), arguments=False, name=name)
     assert name == r
-    # after a run, the application is not set
-    with pytest.raises(LookupError):
-        alphaconf.application.get()
-
-
-def test_run_application_app(application):
-    r = alphaconf.run(lambda: alphaconf.application.get(), app=application, arguments=False)
-    assert r is application
 
 
 def test_run_application_help(capsys):
@@ -81,13 +72,12 @@ def test_run_application_select_logging():
 
 
 def test_set_application(application):
-    token = alphaconf.application.set(None)
+    token = alphaconf.configuration.set(OmegaConf.create())
     try:
         alphaconf.set_application(application)
-        assert alphaconf.application.get() is application
         assert alphaconf.configuration.get() == application.configuration
     finally:
-        alphaconf.application.reset(token)
+        alphaconf.configuration.reset(token)
 
 
 def test_setup_configuration():
