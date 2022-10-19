@@ -4,6 +4,11 @@ from omegaconf import DictConfig, OmegaConf
 import alphaconf
 
 
+@pytest.fixture(scope='function')
+def application():
+    return alphaconf.Application(name='test', version='1.0.0', description='test description')
+
+
 def test_default_app_and_configuration():
     with pytest.raises(LookupError):
         alphaconf.application.get()
@@ -114,9 +119,17 @@ def test_set():
 def test_secret_masks():
     masks = list(alphaconf.SECRET_MASKS)
     try:
-        alphaconf.setup_configuration({'a': {'mypassword': 's3cret'}})
+        secret = 's3cret'
+        alphaconf.setup_configuration(
+            {
+                'a': {'mypassword': secret},
+                'list': [{'password': '???', 'private_key': '123'}],
+            }
+        )
         conf = alphaconf.Application().masked_configuration()
-        assert conf['a']['mypassword'] != 's3cret'
+        assert conf['a']['mypassword'] != secret
+        assert conf['list'][0]['password'] == '???'
+        assert conf['list'][0]['private_key'] != secret
     finally:
         alphaconf.SECRET_MASKS.clear()
         alphaconf.SECRET_MASKS.extend(masks)

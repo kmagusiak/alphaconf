@@ -7,6 +7,11 @@ import alphaconf.logging_util
 
 
 @pytest.fixture(scope='function')
+def application():
+    return alphaconf.Application(name='test_logging')
+
+
+@pytest.fixture(scope='function')
 def log(application):
     application.setup_configuration(arguments=False, setup_logging=True)
     alphaconf.set_application(application)
