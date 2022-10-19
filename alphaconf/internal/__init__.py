@@ -287,7 +287,7 @@ class Application:
         mask_secrets: bool = True,
         mask_keys: List[str] = ['application.uuid'],
     ) -> dict:
-        """Get the configuration as yaml string
+        """Get the configuration as dict with masked items
 
         :param mask_base: Whether to mask "base" entry
         :param mask_secrets: Whether to mask secret keys
@@ -299,7 +299,9 @@ class Application:
         config = cast(dict, OmegaConf.to_container(self.configuration))
         if mask_secrets:
             config = Application.__mask_config(
-                config, lambda p: any(mask(p) for mask in SECRET_MASKS), lambda _: '*****'
+                config,
+                lambda p: any(mask(p) for mask in SECRET_MASKS),
+                lambda v: v if v is None or v == '???' else '*****',
             )
         if mask_base and 'base' not in mask_keys:
             config['base'] = Application.__mask_config(
@@ -312,20 +314,29 @@ class Application:
         return config
 
     @staticmethod
-    def __mask_config(config, check, replacement, path=''):
-        for key in list(config):
-            value = config[key]
-            if isinstance(value, (Dict, DictConfig, dict)):
-                config[key] = value = Application.__mask_config(
-                    value, check, replacement, path + key + '.'
-                )
-            if check(path + key):
-                value = replacement(value)
-                if value is None:
-                    del config[key]
-                else:
-                    config[key] = value
-        return config
+    def __mask_config(obj, check, replace, path=''):
+        """Alter the configuration dict
+
+        :param config: The value to mask
+        :param check: Function to check if we replace the value (path: str) -> bool
+        :param replace: Function doing the replacement of the value (v) -> Any
+        :param key: Current path
+        :return: The modified config
+        """
+        if isinstance(obj, dict):
+            result = {}
+            for key, value in obj.items():
+                new = Application.__mask_config(value, check, replace, f"{path}.{key}")
+                result[key] = new
+            obj = result
+        elif isinstance(obj, list):
+            obj = [
+                Application.__mask_config(v, check, replace, f"{path}[{i}]")
+                for i, v in enumerate(obj)
+            ]
+        if check(path):
+            obj = replace(obj)
+        return obj
 
     def print_help(self, *, usage=None, description=None, arguments=True):
         """Print the help message

@@ -185,10 +185,12 @@ def __run_application(app: Application, main: Callable, exc_info=True):
     app_log = logging.getLogger()
     if get('testing', bool):
         app_log.info('Application testing (%s: %s)', app.name, main.__qualname__)
-        return None
+        return get('testing')
     # Run the application
     try:
         app_log.info('Application start (%s: %s)', app.name, main.__qualname__)
+        for missing_key in OmegaConf.missing_keys(configuration.get()):
+            app_log.warning('Missing configuration key: %s', missing_key)
         result = main()
         if result is None:
             app_log.info('Application end.')

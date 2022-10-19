@@ -2,6 +2,7 @@ import pytest
 from omegaconf import OmegaConf
 
 import alphaconf.internal.arg_parser as ap
+from alphaconf import Application
 
 
 @pytest.fixture(scope='function')
@@ -25,12 +26,13 @@ def test_parse_empty(parser):
     assert isinstance(r, ap.ParseResult)
 
 
-def test_version(parser, application):
+def test_application_version(parser):
     r = parser.parse_args(['-V'])
     print(r)
     assert isinstance(r.result, ap.VersionAction)
+    # check if the result exits application
     with pytest.raises(ap.ExitApplication):
-        r.result.run(application)
+        r.result.run(Application())
 
 
 def test_parse_arguments(parser):
