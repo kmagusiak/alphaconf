@@ -1,10 +1,42 @@
 [build-system]
 requires = [
-    "setuptools>=42",
+    "setuptools>=61",
     "setuptools-scm>=6",
     "wheel",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "alphaconf"
+dynamic = ["version"]
+description = "Write simple scripts leveraging omegaconf"
+readme = "README.md"
+keywords = ["configuration", "omegaconf", "script"]
+license = {text = "MIT"}
+requires-python = ">=3.8"
+classifiers = [
+    # https://pypi.org/pypi?%3Aaction=list_classifiers
+    "Programming Language :: Python :: 3",
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
+]
+dependencies = [
+    "omegaconf>=2",
+]
+
+[project.optional-dependencies]
+color = ["colorama"]
+dotenv = ["python-dotenv"]
+invoke = ["invoke"]
+toml = ["toml"]
+
+[project.urls]
+Homepage = "https://github.com/kmagusiak/alphaconf"
+
+[[project.authors]]
+name = "Krzysztof Magusiak"
+email = "chrmag@poczta.onet.pl"
 
 [tool.black]
 line-length = 100
@@ -16,6 +48,9 @@ ignore_missing_imports = true
 [tool.isort]
 profile = "black"
 line_length = 100
+
+[tools.setuptools]
+packages = ["alphaconf"]
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"

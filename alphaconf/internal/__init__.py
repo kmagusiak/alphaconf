@@ -75,7 +75,7 @@ class Application:
         )
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Get the name of the application"""
         return self.properties['name']
 
@@ -90,7 +90,7 @@ class Application:
             assert self.__config is not None
         return self.__config
 
-    def _get_possible_configuration_paths(self, additional_paths=[]) -> Iterable[str]:
+    def _get_possible_configuration_paths(self, additional_paths: List[str] = []) -> Iterable[str]:
         """List of paths where to find configuration files"""
         name = self.name
         is_windows = sys.platform.startswith('win')
@@ -168,11 +168,7 @@ class Application:
             if not (path in configuration_paths or os.path.isfile(path)):
                 continue
             application_log.debug('Load configuration from %s', path)
-            conf = load_file.read_configuration_file(path)
-            if isinstance(conf, DictConfig):
-                yield conf
-            else:
-                yield from conf
+            yield load_file.read_configuration_file(path)
         # Environment
         prefixes: Optional[Tuple[str, ...]]
         if env_prefixes is True:

@@ -4,7 +4,19 @@ import logging
 import re
 import sys
 from contextvars import ContextVar
-from typing import Any, Callable, Dict, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 from omegaconf import Container, DictConfig, MissingMandatoryValue, OmegaConf
 
@@ -48,6 +60,44 @@ configuration: ContextVar[DictConfig] = ContextVar('configuration', default=Omeg
 """Additional helpers for the application"""
 _helpers: ContextVar[Dict[str, str]] = ContextVar('configuration_helpers', default={})
 
+T = TypeVar('T')
+
+
+@overload
+def select(
+    container: Any,
+    key: str,
+    type: Type[T],
+    *,
+    default: Optional[T] = None,
+    required: Literal[True],
+) -> T:
+    ...
+
+
+@overload
+def select(
+    container: Any,
+    key: str,
+    type: Type[T],
+    *,
+    default: Optional[T] = None,
+    required: bool = False,
+) -> Optional[T]:
+    ...
+
+
+@overload
+def select(
+    container: Any,
+    key: str,
+    type: Union[str, Type[T], None] = None,
+    *,
+    default: Any = None,
+    required: bool = False,
+) -> Any:
+    ...
+
 
 def select(container: Any, key: str, type=None, *, default=None, required: bool = False) -> Any:
     """Select a configuration item from the container
@@ -79,6 +129,39 @@ def select(container: Any, key: str, type=None, *, default=None, required: bool 
     if type is not None:
         c = convert_to_type(c, type)
     return c
+
+
+@overload
+def get(
+    config_key: str,
+    type: Type[T],
+    *,
+    default: Optional[T] = None,
+    required: Literal[True],
+) -> T:
+    ...
+
+
+@overload
+def get(
+    config_key: str,
+    type: Type[T],
+    *,
+    default: Optional[T] = None,
+    required: bool = False,
+) -> Optional[T]:
+    ...
+
+
+@overload
+def get(
+    config_key: str,
+    type: Union[str, Type[T], None] = None,
+    *,
+    default: Any = None,
+    required: bool = False,
+) -> Any:
+    ...
 
 
 def get(config_key: str, type=None, *, default=None, required: bool = False) -> Any:
@@ -118,7 +201,14 @@ def set_application(app: Application, merge: bool = False):
     configuration.set(config)
 
 
-def run(main: Callable, arguments=True, *, should_exit=True, app: Application = None, **config):
+def run(
+    main: Callable[[], T],
+    arguments: Union[bool, List[str]] = True,
+    *,
+    should_exit: bool = True,
+    app: Application = None,
+    **config,
+) -> Optional[T]:
     """Run this application
 
     If an application is not given, a new one will be created with configuration properties
@@ -168,7 +258,7 @@ def run(main: Callable, arguments=True, *, should_exit=True, app: Application = 
         log.debug('Normal application exit')
         if should_exit:
             sys.exit()
-        return
+        return None
     context = contextvars.copy_context()
     try:
         return context.run(__run_application, app=app, main=main, exc_info=should_exit)
@@ -179,7 +269,7 @@ def run(main: Callable, arguments=True, *, should_exit=True, app: Application = 
         raise
 
 
-def __run_application(app: Application, main: Callable, exc_info=True):
+def __run_application(app: Application, main: Callable[[], T], exc_info=True) -> T:
     """Set the application and execute main"""
     set_application(app)
     app_log = logging.getLogger()
