@@ -1,7 +1,7 @@
 import logging
 
 from . import set_application, setup_configuration
-from .internal.application import Application
+from .internal import Application
 from .internal.load_file import read_configuration_file
 
 __doc__ = """Helpers for interactive applications."""

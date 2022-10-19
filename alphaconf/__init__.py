@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, Union, cast
 
 from omegaconf import Container, DictConfig, MissingMandatoryValue, OmegaConf
 
-from .internal.application import Application, _log
+from .internal import Application
 from .internal.arg_parser import ArgumentError, ExitApplication
 from .internal.type_resolvers import convert_to_type
 
@@ -130,6 +130,8 @@ def run(main: Callable, arguments=True, *, should_exit=True, app: Application = 
     :param config: Arguments passed to Application.__init__() and Application.setup_configuration()
     :return: The result of main
     """
+    from .internal import application_log as log
+
     if 'setup_logging' not in config:
         config['setup_logging'] = True
     if app is None:
@@ -153,17 +155,17 @@ def run(main: Callable, arguments=True, *, should_exit=True, app: Application = 
     try:
         app.setup_configuration(arguments, **config)
     except MissingMandatoryValue as e:
-        _log.error(e)
+        log.error(e)
         if should_exit:
             sys.exit(99)
         raise
     except ArgumentError as e:
-        _log.error(e)
+        log.error(e)
         if should_exit:
             sys.exit(2)
         raise
     except ExitApplication:
-        _log.debug('Normal application exit')
+        log.debug('Normal application exit')
         if should_exit:
             sys.exit()
         return
@@ -172,7 +174,7 @@ def run(main: Callable, arguments=True, *, should_exit=True, app: Application = 
         return context.run(__run_application, app=app, main=main, exc_info=should_exit)
     except Exception:
         if should_exit:
-            _log.debug('Exit application')
+            log.debug('Exit application')
             sys.exit(1)
         raise
 

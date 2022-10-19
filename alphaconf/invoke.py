@@ -2,8 +2,7 @@ import invoke
 from omegaconf import OmegaConf
 
 from . import run as _application_run
-from .internal import arg_parser
-from .internal.application import Application
+from .internal import Application, arg_parser
 
 __doc__ = """Invoke wrapper for an application
 
