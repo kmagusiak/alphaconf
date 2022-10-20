@@ -306,10 +306,20 @@ class Application:
                 lambda v: v if v is None or v == '???' else '*****',
             )
         if mask_base and 'base' not in mask_keys:
+            # first remove all values if the object is not resolved
             config['base'] = Application.__mask_config(
                 config['base'],
-                lambda p: isinstance(OmegaConf.select(self.configuration, p), DictConfig),
-                lambda v: list(v) if isinstance(v, dict) else v,
+                lambda p: not isinstance(
+                    OmegaConf.select(self.configuration, p, throw_on_resolution_failure=False),
+                    DictConfig,
+                ),
+                lambda v: {},
+            )
+            # then collapse dict[str,None] into a list[str]
+            config['base'] = Application.__mask_config(
+                config['base'],
+                lambda _: True,
+                lambda v: list(v) if isinstance(v, dict) and not any(v.values()) else v,
             )
         if mask_keys:
             config = Application.__mask_config(config, lambda p: p in mask_keys, lambda _: None)
@@ -325,19 +335,22 @@ class Application:
         :param key: Current path
         :return: The modified config
         """
+        if check(path):
+            obj = replace(obj)
         if isinstance(obj, dict):
             result = {}
             for key, value in obj.items():
-                new = Application.__mask_config(value, check, replace, f"{path}.{key}")
-                result[key] = new
+                new = Application.__mask_config(
+                    value, check, replace, f"{path}.{key}" if path else key
+                )
+                if new is not None:
+                    result[key] = new
             obj = result
         elif isinstance(obj, list):
             obj = [
                 Application.__mask_config(v, check, replace, f"{path}[{i}]")
                 for i, v in enumerate(obj)
             ]
-        if check(path):
-            obj = replace(obj)
         return obj
 
     def print_help(self, *, usage=None, description=None, arguments=True):

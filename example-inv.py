@@ -1,6 +1,6 @@
 import logging
 
-from invoke import Collection, task
+from invoke import Collection, Task, task
 
 import alphaconf.invoke
 
@@ -20,6 +20,6 @@ def doit(ctx, param=None):
 
 
 # add some default configuration and run/configure invoke's namespace
-ns = Collection(doit)
+ns = Collection(*[v for v in globals().values() if isinstance(v, Task)])
 alphaconf.setup_configuration({'backup': 'all'})
 alphaconf.invoke.run(__name__, ns)
