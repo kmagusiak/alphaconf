@@ -28,7 +28,7 @@ class InvokeApplication(Application):
         self.namespace = namespace
         self.argument_parser.add_argument(
             InvokeAction,
-            metavar="invoke arguments",
+            metavar="-- invoke arguments",
             help="Rest is passed to invoke",
         )
 
