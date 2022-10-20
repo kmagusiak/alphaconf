@@ -53,28 +53,6 @@ SECRET_MASKS = [
 #######################################
 # APPLICATION CONTEXT
 
-# DEPRECATED: reomove application
-_application: ContextVar[Application] = ContextVar('application')
-
-
-class DeprecatedWrapper(object):
-    def __init__(self, obj):
-        self._wrapped_obj = obj
-
-    def set_internal(self, app):
-        return self._wrapped_obj.set(app)
-
-    def __getattribute__(self, name):
-        import warnings
-
-        if name in ('set_internal', '__init__', '_wrapped_obj'):
-            return object.__getattribute__(self, name)
-        warnings.warn('alphaconf.application will be removed', DeprecationWarning)
-        return getattr(self._wrapped_obj, name)
-
-
-application = DeprecatedWrapper(_application)
-# END OF DEPRECATION
 """The current configuration"""
 configuration: ContextVar[DictConfig] = ContextVar('configuration', default=OmegaConf.create())
 """Additional helpers for the application"""
@@ -213,7 +191,6 @@ def set_application(app: Application, merge: bool = False):
     :param app: The application
     :param merge: Wether to merge the current configuration with the application (default false)
     """
-    application.set_internal(app)
     config = app.configuration
     if merge:
         # merging 2 DictConfig objects
