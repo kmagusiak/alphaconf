@@ -15,7 +15,15 @@ def read_text(value):
     return Path(value).expanduser().read_text()
 
 
+def parse_bool(value) -> bool:
+    if isinstance(value, str):
+        if value.lower() in ('no', 'false', 'n', 'f', 'none', 'null', 'undefined', '0'):
+            return False
+    return bool(value)
+
+
 TYPE_CONVERTER = {
+    bool: parse_bool,
     datetime.datetime: datetime.datetime.fromisoformat,
     datetime.date: lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(),
     datetime.time: datetime.time.fromisoformat,

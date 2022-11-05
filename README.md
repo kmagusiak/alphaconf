@@ -1,11 +1,11 @@
-# Alphaconf
+# AlphaConf
 
 [![PyPI version](https://badge.fury.io/py/alphaconf.svg)](https://pypi.org/project/alphaconf/)
 
 A small library to ease writing parameterized scripts.
 The goal is to execute a single script and be able to overwrite the parameters
 easily.
-The configuration is based on [omegaconf](https://omegaconf.readthedocs.io/).
+The configuration is based on [OmegaConf](https://omegaconf.readthedocs.io/).
 Optionally, loading from toml is possible.
 
 To run multiple related tasks, there is an integration with
@@ -16,42 +16,44 @@ to launch multiple instances.
 
 ## Demo and application
 
-[DEMO](./demo.ipynb)
-
 To run an application, you need...
 
-    import alphaconf
-    # each module or application can declare the default configuration they need
-    # it will always be loaded before application startup
-    alphaconf.setup_configuration("""
-    server:
-      url: http://default
-      user: ${oc.env:USER}
-    """)
+```python
+# myapp.py
+import alphaconf
+import logging
+# define the default values and helpers
+alphaconf.setup_configuration("""
+server:
+    url: http://default
+""", {
+    "server.url": "The URL to show here",
+})
 
-    def main():
-        log = logging.getLogger()
-        # get the DictConfig from the current application
-        log.info('app name:', alphaconf.configuration.get().application.name)
-        # shortcut to get an option as a dict, str, etc.
-        log.info('server.user:', alphaconf.get('server.user'))
-        log.info('has server.user:', alphaconf.get('server.user', bool))
+def main():
+    log = logging.getLogger()
+    log.info('server.url:', alphaconf.get('server.url'))
+    log.info('has server.user:', alphaconf.get('server.user', bool))
 
-    if __name__ == '__main__':
-        # run the application
-        alphaconf.run(
-            main,
-            name='example',
-            version='0.1',
-        )
+if __name__ == '__main__':
+    alphaconf.run(main)
+```
+
+Invoking:
+```bash
+python myapp.py server.url=http://github.com
+```
 
 During an interactive session, you can set the application in the current
 context.
+```python
+# import other modules
+import alphaconf.interactive
+alphaconf.interactive.mount()
+alphaconf.interactive.load_configuration_file('path')
+```
 
-    # import other modules
-    import alphaconf.interactive
-    alphaconf.interactive.mount()
-    alphaconf.interactive.load_configuration_file('path')
+Check the [DEMO](./demo.ipynb) for more examples.
 
 ## How the configuration is loaded
 
@@ -90,14 +92,24 @@ So, `logging: ${oc.select:base.logging.default}` resolves to the configuration
 dict defined in base.logging.default and you can select it using
 `--select logging=default`.
 
-## Secrets
+## Configuration values and intergations
+
+### Typed-configuration
+
+You can use *omegaconf* with *dataclasses* to specify which values are
+enforced in the configuration.
+Alternatively, the *get* method can receive a data type or a function
+which will parse the value.
+By default, bool, str, Path, DateTime, etc. are supported.
+
+### Secrets
 
 When showing the configuration, by default configuration keys which are
 secrets, keys or passwords will be masked.
 Another good practice is to have a file containing the password which
 you can retrieve using `alphaconf.get('secret_file', 'read_strip')`.
 
-## Invoke integration
+### Invoke integration
 
 Just add the lines below to parameterize invoke.
 Note that the argument parsing to overwrite configuration will work only
@@ -107,3 +119,8 @@ when the script is directly called.
     import alphaconf.invoke
     alphaconf.setup_configuration({'backup': 'all'})
     alphaconf.invoke.run(__name__, ns)
+
+### Interactive and manual usage
+
+Use `alphaconf.interactive.mount()` or load manually create an
+`alphaconf.Application`, configure it and set it.
