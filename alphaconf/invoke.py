@@ -1,3 +1,5 @@
+from typing import Dict, Union
+
 import invoke
 from omegaconf import OmegaConf
 
@@ -8,6 +10,7 @@ __doc__ = """Invoke wrapper for an application
 
 Adding the following lines at the end of the file adds support for alphaconf
 to inject the configuration.
+Instead of a collection, you could pass `globals()`.
 
     ns = Collection(...)
     alphaconf.invoke.run(__name__, ns)
@@ -23,7 +26,7 @@ class InvokeAction(arg_parser.Action):
 class InvokeApplication(Application):
     """Application that launched an invoke.Program"""
 
-    def __init__(self, namespace, **properties) -> None:
+    def __init__(self, namespace: invoke.Collection, **properties) -> None:
         super().__init__(**properties)
         self.namespace = namespace
         self.argument_parser.add_argument(
@@ -47,9 +50,20 @@ class InvokeApplication(Application):
         return prog.run(argv)
 
 
-def run(__name__: str, namespace: invoke.collection.Collection, **properties) -> InvokeApplication:
+def collection(variables: Dict = {}) -> invoke.Collection:
+    """Create a new collection"""
+    return invoke.Collection(*[v for v in variables.values() if isinstance(v, invoke.Task)])
+
+
+def run(
+    __name__: str, namespace: Union[invoke.collection.Collection, Dict], **properties
+) -> InvokeApplication:
     """Create an invoke application and run it if __name__ is __main__"""
-    app = InvokeApplication(namespace, **properties)
+    if isinstance(namespace, invoke.Collection):
+        ns = namespace
+    else:
+        ns = collection(namespace)
+    app = InvokeApplication(ns, **properties)
     if __name__ == '__main__':
         # Let's run the application and parse the arguments
         _application_run(app.run_program, app=app)
@@ -59,5 +73,5 @@ def run(__name__: str, namespace: invoke.collection.Collection, **properties) ->
 
         app.setup_configuration(arguments=False, load_dotenv=False, setup_logging=True)
         set_application(app, merge=True)
-        namespace.configure(get(""))
+        ns.configure(get(""))
     return app
