@@ -115,10 +115,12 @@ Just add the lines below to parameterize invoke.
 Note that the argument parsing to overwrite configuration will work only
 when the script is directly called.
 
-    ns = Collection()  # define the invoke configuration
-    import alphaconf.invoke
-    alphaconf.setup_configuration({'backup': 'all'})
-    alphaconf.invoke.run(__name__, ns)
+```python
+import alphaconf.invoke
+ns = alphaconf.invoke.collection(globals())
+alphaconf.setup_configuration({'backup': 'all'})
+alphaconf.invoke.run(__name__, ns)
+```
 
 ### Interactive and manual usage
 

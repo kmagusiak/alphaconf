@@ -1,12 +1,13 @@
 import logging
 
-from invoke import Collection, Task, task
+from invoke import task
 
 import alphaconf.invoke
 
 
 @task
 def doit(ctx, param=None):
+    """Some documentation..."""
     logging.info('Hello')
     # get the default configuration
     logging.info('Backup: %s', alphaconf.configuration.get().backup)
@@ -20,6 +21,5 @@ def doit(ctx, param=None):
 
 
 # add some default configuration and run/configure invoke's namespace
-ns = Collection(*[v for v in globals().values() if isinstance(v, Task)])
 alphaconf.setup_configuration({'backup': 'all'})
-alphaconf.invoke.run(__name__, ns)
+alphaconf.invoke.run(__name__, globals())
