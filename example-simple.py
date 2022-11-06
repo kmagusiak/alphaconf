@@ -26,6 +26,13 @@ exception: false
 
 def main():
     """Simple demo of alphaconf"""
+
+    # get the application name from the configuration
+    print('app:', alphaconf.configuration.get().application.name)
+    # shortcut version to get a configuration value
+    print('server.user:', alphaconf.get('server.user'))
+    print('server.home', alphaconf.get('server.home', Path))
+
     # you can set additional dynamic values in the logging
     context_value = ['init']
     alphaconf.logging_util.DynamicLogRecord.set_generator(lambda: context_value)
@@ -34,14 +41,9 @@ def main():
     logging.info('The app is running...', extra={'other': 'othervalue'})
     context_value = None
 
-    # get the application name from the configuration
-    print('app:', alphaconf.configuration.get().application.name)
-    # shortcut version to get a configuration value
-    print('server.user:', alphaconf.get('server.user'))
-    print('server.home', alphaconf.get('server.home', Path))
-
+    logging.info('Just a log')
     # show configuration
-    value = alphaconf.get('show')
+    value = alphaconf.get('show', str)
     if value and (value := alphaconf.get(value)):
         print(value)
     # log an exception if we have it in the configuration
@@ -50,10 +52,11 @@ def main():
             raise RuntimeError("Asked to raise something")
         except Exception:
             logging.error("Just log something", exc_info=True)
-    context_value = 'finished'
+    context_value = ['finished']
 
 
 if __name__ == '__main__':
+    # running with explicit parameters
     alphaconf.run(
         main,
         name='example',
