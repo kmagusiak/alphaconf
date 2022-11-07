@@ -17,7 +17,8 @@ def read_text(value):
 
 def parse_bool(value) -> bool:
     if isinstance(value, str):
-        if value.lower() in ('no', 'false', 'n', 'f', 'none', 'null', 'undefined', '0'):
+        value = value.strip().lower()
+        if value in ('no', 'false', 'n', 'f', 'off', 'none', 'null', 'undefined', '0'):
             return False
     return bool(value)
 
