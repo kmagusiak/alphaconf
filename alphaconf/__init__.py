@@ -203,7 +203,7 @@ def run(
     arguments: Union[bool, List[str]] = True,
     *,
     should_exit: bool = True,
-    app: Application = None,
+    app: Optional[Application] = None,
     **config,
 ) -> Optional[T]:
     """Run this application

@@ -1,3 +1,4 @@
+import itertools
 import logging
 import os
 import sys
@@ -96,7 +97,7 @@ class Application:
             assert self.__config is not None
         return self.__config
 
-    def _get_possible_configuration_paths(self, additional_paths: List[str] = []) -> Iterable[str]:
+    def _get_possible_configuration_paths(self) -> Iterable[str]:
         """List of paths where to find configuration files"""
         name = self.name
         is_windows = sys.platform.startswith('win')
@@ -111,7 +112,6 @@ class Application:
             if path and '$' not in path:
                 for ext in load_file.SUPPORTED_EXTENSIONS:
                     yield path.format(name + '.' + ext)
-        yield from additional_paths
 
     def _load_dotenv(self, load_dotenv: Optional[bool] = None):
         """Load dotenv variables (optionally)"""
@@ -163,6 +163,7 @@ class Application:
 
         - All of the default configurations
         - The app configuration
+        - Read file defined in PYTHON_ALPHACONF
         - Reads existing files from possible configuration paths
         - Reads environment variables based on given prefixes
 
@@ -176,8 +177,13 @@ class Application:
         yield default_configuration
         yield self._app_configuration()
         # Read files
-        for path in self._get_possible_configuration_paths(configuration_paths):
-            if not (path in configuration_paths or os.path.isfile(path)):
+        env_configuration_path = os.environ.get('PYTHON_ALPHACONF') or ''
+        for path in itertools.chain(
+            [env_configuration_path],
+            self._get_possible_configuration_paths(),
+            configuration_paths,
+        ):
+            if not os.path.isfile(path):
                 continue
             application_log.debug('Load configuration from %s', path)
             yield load_file.read_configuration_file(path)

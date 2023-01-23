@@ -64,7 +64,8 @@ Then configuration is built from:
 
 - default configurations defined using (`alphaconf.setup_configuration`)
 - `application` key is generated
-- configuration files from configuration directories (base on application name)
+- PYTHON_ALPHACONF may contain a path to a configuration file
+- configuration files from configuration directories (using application name)
 - environment variables based on key prefixes,
   except "BASE" and "PYTHON";
   if you have a configuration key "abc", all environment variables starting
@@ -92,7 +93,7 @@ So, `logging: ${oc.select:base.logging.default}` resolves to the configuration
 dict defined in base.logging.default and you can select it using
 `--select logging=default`.
 
-## Configuration values and intergations
+## Configuration values and integrations
 
 ### Typed-configuration
 
