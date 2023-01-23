@@ -119,14 +119,20 @@ class Application:
             return
         try:
             import dotenv
-
-            path = dotenv.find_dotenv(usecwd=True)
-            application_log.debug('Loading dotenv: %s', path or '(none)')
-            dotenv.load_dotenv(path)
         except ModuleNotFoundError:
             if load_dotenv:
                 raise
             application_log.debug('dotenv is not installed')
+            return
+        path = dotenv.find_dotenv(usecwd=True)
+        application_log.debug('Loading dotenv: %s', path or '(none)')
+        if not path:
+            return
+        dotenv.load_dotenv(path)
+        # check local overrides
+        path += '.local'
+        if os.path.isfile(path):
+            dotenv.load_dotenv(path)
 
     def __load_environ(self, prefixes: Iterable[str]) -> DictConfig:
         """Load environment variables into a dict configuration"""
