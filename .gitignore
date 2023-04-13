@@ -10,5 +10,4 @@ __pycache__
 dist
 .ipynb_checkpoints
 *.egg-info
-.mypy_cache
-.pytest_cache
+.*_cache

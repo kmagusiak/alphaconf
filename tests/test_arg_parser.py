@@ -37,7 +37,7 @@ def test_application_version(parser):
 
 def test_parse_arguments(parser):
     other_arguments = ['other', 'arguments']
-    r = parser.parse_args(['hello=world', 'test=123', '--'] + other_arguments)
+    r = parser.parse_args(['hello=world', 'test=123', '--', *other_arguments])
     print(r)
     assert r.result is None
     conf = OmegaConf.merge(*r.configurations())

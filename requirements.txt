@@ -2,9 +2,8 @@
 setuptools
 setuptools_scm
 black
-flake8
-isort
 mypy
+ruff
 pytest
 types-toml
 

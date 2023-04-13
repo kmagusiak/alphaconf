@@ -42,7 +42,7 @@ class InvokeApplication(Application):
 
     def run_program(self):
         """Create and run the invoke program"""
-        argv = [self.name] + self.parsed.rest
+        argv = [self.name, *self.parsed.rest]
         namespace = self.namespace
         configuration = OmegaConf.to_object(self.configuration)
         namespace.configure(configuration)
