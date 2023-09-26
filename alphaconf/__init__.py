@@ -20,6 +20,7 @@ from typing import (
 
 from omegaconf import Container, DictConfig, MissingMandatoryValue, OmegaConf
 
+from .frozendict import frozendict  # noqa: F401 (expose)
 from .internal import Application
 from .internal.arg_parser import ArgumentError, ExitApplication
 from .internal.type_resolvers import convert_to_type
@@ -271,22 +272,22 @@ def __run_application(app: Application, main: Callable[[], T], exc_info=True) ->
     set_application(app)
     app_log = logging.getLogger()
     if get('testing', bool):
-        app_log.info('Application testing (%s: %s)', app.name, main.__qualname__)
+        app_log.info('Testing (%s: %s)', app.name, main.__qualname__)
         return get('testing')
     # Run the application
     try:
-        app_log.info('Application start (%s: %s)', app.name, main.__qualname__)
+        app_log.info('Start (%s: %s)', app.name, main.__qualname__)
         for missing_key in OmegaConf.missing_keys(configuration.get()):
             app_log.warning('Missing configuration key: %s', missing_key)
         result = main()
         if result is None:
-            app_log.info('Application end.')
+            app_log.info('End.')
         else:
-            app_log.info('Application end: %s', result)
+            app_log.info('End: %s', result)
         return result
     except Exception as e:
         # no need to log exc_info beacause the parent will handle it
-        app_log.error('Application failed (%s) %s', type(e).__name__, e, exc_info=exc_info)
+        app_log.error('Failed (%s) %s', type(e).__name__, e, exc_info=exc_info)
         raise
 
 
@@ -303,6 +304,7 @@ def setup_configuration(
     if isinstance(conf, DictConfig):
         config = conf
     else:
+        # TODO support a.b: v in dicts?
         created_config = OmegaConf.create(conf)
         if not (created_config and isinstance(created_config, DictConfig)):
             raise ValueError('Expecting a non-empty dict configuration')

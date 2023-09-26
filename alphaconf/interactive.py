@@ -6,7 +6,7 @@ import alphaconf
 
 from .internal.load_file import read_configuration_file
 
-__doc__ = """Helpers for interactive applications."""
+__doc__ = """Helpers for interactive applications like ipython."""
 __all__ = ['mount', 'read_configuration_file', 'load_configuration_file']
 
 
