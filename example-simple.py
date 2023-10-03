@@ -1,9 +1,29 @@
 #!/usr/bin/env python3
 import logging
 from pathlib import Path
+from typing import Optional, Union
+
+from pydantic import BaseModel, Field, PostgresDsn
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 import alphaconf
 import alphaconf.logging_util
+
+
+class Conn(BaseModel):
+    url: str
+    user: str
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix='MY_PREFIX_', case_sensitive=False)
+
+    foo: str = Field('xxx', alias='myal')
+    bar: str = Field('xxx')
+
+    c: Union[Conn, str] = Conn()
+    d: Optional[PostgresDsn] = None
+
 
 # adding a default configuration
 # these will be merged with the application
@@ -26,6 +46,9 @@ exception: false
 
 def main():
     """Simple demo of alphaconf"""
+
+    print(Settings().model_dump())
+    Settings.model_validate
 
     # get the application name from the configuration
     print('app:', alphaconf.configuration.get().application.name)
