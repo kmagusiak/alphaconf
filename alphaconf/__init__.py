@@ -1,8 +1,6 @@
 import contextlib
-import contextvars
-import logging
 import re
-import sys
+import warnings
 from contextvars import ContextVar
 from typing import (
     Any,
@@ -22,7 +20,6 @@ from omegaconf import Container, DictConfig, MissingMandatoryValue, OmegaConf
 
 from .frozendict import frozendict  # noqa: F401 (expose)
 from .internal import Application
-from .internal.arg_parser import ArgumentError, ExitApplication
 from .internal.type_resolvers import convert_to_type
 
 __doc__ = """AlphaConf
@@ -41,7 +38,7 @@ A simple application, should just call run to benefit from argument parsing,
 configuration load and logging setup.
 
     if __name__ == '__main__':
-        alphaconf.run(main)
+        alphaconf.cli.run(main)
 
 """
 
@@ -168,19 +165,25 @@ def get(config_key: str, type=None, *, default=None, required: bool = False) -> 
     return select(configuration.get(), config_key, type=type, default=default, required=required)
 
 
-@contextlib.contextmanager
 def set(**kw):
     """Update the configuration in a with block
 
     with alphaconf.set(a=value):
         assert alphaconf.get('a') == value
     """
-    if not kw:
-        yield
-        return
-    config = configuration.get()
-    # merging 2 dict-like objects
-    config = cast(DictConfig, OmegaConf.merge(config, kw))
+    return with_config(OmegaConf.create(kw))
+
+
+@contextlib.contextmanager
+def with_config(config: DictConfig, merge: bool = True):
+    """Set the application and its configuration
+
+    :param app: The application
+    :param merge: Wether to merge the current configuration with the application (default false)
+    """
+    if merge:
+        # merging 2 DictConfig objects
+        config = cast(DictConfig, OmegaConf.merge(configuration.get(), config))
     token = configuration.set(config)
     yield
     configuration.reset(token)
@@ -192,11 +195,9 @@ def set_application(app: Application, merge: bool = False):
     :param app: The application
     :param merge: Wether to merge the current configuration with the application (default false)
     """
-    config = app.configuration
-    if merge:
-        # merging 2 DictConfig objects
-        config = cast(DictConfig, OmegaConf.merge(configuration.get(), config))
-    configuration.set(config)
+    warnings.warn("use alphaconf.with_config(app.configuration)", DeprecationWarning)
+    ctx = with_config(app.configuration, merge=merge)
+    ctx.__enter__()  # just enter the context and never leave
 
 
 def run(
@@ -218,77 +219,10 @@ def run(
     :param config: Arguments passed to Application.__init__() and Application.setup_configuration()
     :return: The result of main
     """
-    from .internal import application_log as log
+    warnings.warn("use alphaconf.cli.run directly", DeprecationWarning)
+    from .cli import run
 
-    if 'setup_logging' not in config:
-        config['setup_logging'] = True
-    if app is None:
-        properties = {
-            k: config.pop(k)
-            for k in ['name', 'version', 'description', 'short_description']
-            if k in config
-        }
-        # if we don't have a description, get it from the function's docs
-        if 'description' not in properties and main.__doc__:
-            description = main.__doc__.strip().split('\n', maxsplit=1)
-            if 'short_description' not in properties:
-                properties['short_description'] = description[0]
-            if len(description) > 1:
-                import textwrap
-
-                properties['description'] = description[0] + '\n' + textwrap.dedent(description[1])
-            else:
-                properties['description'] = properties['short_description']
-        app = Application(**properties)
-    try:
-        app.setup_configuration(arguments, **config)
-    except MissingMandatoryValue as e:
-        log.error(e)
-        if should_exit:
-            sys.exit(99)
-        raise
-    except ArgumentError as e:
-        log.error(e)
-        if should_exit:
-            sys.exit(2)
-        raise
-    except ExitApplication:
-        log.debug('Normal application exit')
-        if should_exit:
-            sys.exit()
-        return None
-    context = contextvars.copy_context()
-    try:
-        return context.run(__run_application, app=app, main=main, exc_info=should_exit)
-    except Exception:
-        if should_exit:
-            log.debug('Exit application')
-            sys.exit(1)
-        raise
-
-
-def __run_application(app: Application, main: Callable[[], T], exc_info=True) -> T:
-    """Set the application and execute main"""
-    set_application(app)
-    app_log = logging.getLogger()
-    if get('testing', bool):
-        app_log.info('Testing (%s: %s)', app.name, main.__qualname__)
-        return get('testing')
-    # Run the application
-    try:
-        app_log.info('Start (%s: %s)', app.name, main.__qualname__)
-        for missing_key in OmegaConf.missing_keys(configuration.get()):
-            app_log.warning('Missing configuration key: %s', missing_key)
-        result = main()
-        if result is None:
-            app_log.info('End.')
-        else:
-            app_log.info('End: %s', result)
-        return result
-    except Exception as e:
-        # no need to log exc_info beacause the parent will handle it
-        app_log.error('Failed (%s) %s', type(e).__name__, e, exc_info=exc_info)
-        raise
+    return run(main, arguments, should_exit=should_exit, app=app, **config)
 
 
 def setup_configuration(
@@ -300,6 +234,7 @@ def setup_configuration(
     :param conf: The configuration to merge into the global configuration
     :param helpers: Description of parameters used in argument parser helpers
     """
+    # TODO deprecate
     # merge the configurations
     if isinstance(conf, DictConfig):
         config = conf

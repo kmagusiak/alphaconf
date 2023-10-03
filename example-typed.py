@@ -5,7 +5,7 @@ from typing import Optional
 
 from omegaconf import OmegaConf
 
-import alphaconf
+import alphaconf.cli
 
 
 @dataclass
@@ -22,4 +22,4 @@ def main():
 
 
 if __name__ == '__main__':
-    alphaconf.run(main)
+    alphaconf.cli.run(main)

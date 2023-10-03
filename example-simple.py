@@ -6,7 +6,7 @@ from typing import Optional, Union
 from pydantic import BaseModel, Field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-import alphaconf
+import alphaconf.cli
 import alphaconf.logging_util
 
 
@@ -80,7 +80,7 @@ def main():
 
 if __name__ == '__main__':
     # running with explicit parameters
-    alphaconf.run(
+    alphaconf.cli.run(
         main,
         name='example',
         version='0.1',
