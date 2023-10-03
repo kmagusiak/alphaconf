@@ -3,6 +3,11 @@ from pathlib import Path
 
 from omegaconf import OmegaConf
 
+try:
+    import pydantic
+except ImportError:
+    pydantic = None  # type: ignore
+
 __doc__ = """Resolves types when reading values from the configuration.
 
 You can add values to TYPE_CONVERTER which is used in `alphaconf.get()`.
@@ -47,5 +52,7 @@ def convert_to_type(value, type):
     :param type: A class or a callable used to convert the value
     :return: Result of the callable
     """
+    if pydantic and isinstance(type, pydantic.BaseModel):
+        return type.model_validate(value)
     type = TYPE_CONVERTER.get(type, type)
     return type(value)
