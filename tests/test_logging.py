@@ -24,8 +24,8 @@ def test_log_ok(log, caplog):
     log.warning('twarn')
     print(caplog.records)
     assert len(caplog.records) == 2  # should not capture debug by default
-    assert 'tinfo' == caplog.records[0].message
-    assert 'twarn' == caplog.records[1].message
+    assert caplog.records[0].message == 'tinfo'
+    assert caplog.records[1].message == 'twarn'
 
 
 def test_log_exception(log, caplog):

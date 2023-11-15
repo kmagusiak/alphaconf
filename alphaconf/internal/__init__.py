@@ -148,7 +148,7 @@ class Application:
         conf = OmegaConf.create({})
         for name, value in dotlist:
             try:
-                conf.merge_with_dotlist(["%s=%s" % (name, value)])
+                conf.merge_with_dotlist([f"{name}={value}"])
             except YAMLError:
                 # if cannot load the value as a dotlist, just add the string
                 OmegaConf.update(conf, name, value)
@@ -191,7 +191,7 @@ class Application:
         prefixes: Optional[Tuple[str, ...]]
         if env_prefixes is True:
             application_log.debug('Detecting accepted env prefixes')
-            default_keys = {str(k) for k in default_configuration.keys()}
+            default_keys = {str(k) for k in default_configuration}
             prefixes = tuple(
                 k.upper() + '_'
                 for k in default_keys
@@ -202,7 +202,7 @@ class Application:
         else:
             prefixes = None
         if prefixes:
-            application_log.debug('Loading env configuration from prefixes %s' % (prefixes,))
+            application_log.debug('Loading env configuration from prefixes %s', prefixes)
             yield self.__load_environ(prefixes)
 
     def setup_configuration(
