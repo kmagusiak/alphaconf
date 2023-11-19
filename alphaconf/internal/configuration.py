@@ -77,23 +77,9 @@ class Configuration:
         ...
 
     def get(self, key: Union[str, Type], type=None, *, default=raise_on_missing):
+        """Get a configuation value and cast to the correct type"""
         if isinstance(key, _cla_type):
-            value = self.__type_value.get(key)
-            if value is not None:
-                return value
-            key_str = self.__type_path.get(key)
-            if key_str is None:
-                if default is raise_on_missing:
-                    raise ValueError(f"Key not found for type {key}")
-                return default
-            try:
-                value = self.get(key_str, key)
-                self.__type_value = value
-            except ValueError:
-                if default is raise_on_missing:
-                    raise
-                value = default
-            return value
+            return self.__get_type(key, default=default)
         # get using a string key
         assert isinstance(key, str), "Expecting a str key"
         value = OmegaConf.select(
@@ -114,6 +100,28 @@ class Configuration:
             value = convert_to_type(value, type)
         return value
 
+    def __get_type(self, key: Type, *, default=raise_on_missing):
+        value = self.__type_value.get(key)
+        if value is not None:
+            return value
+        key_str = self.__type_path.get(key)
+        if key_str is None:
+            if default is raise_on_missing:
+                raise ValueError(f"Key not found for type {key}")
+            return default
+        try:
+            value = self.get(key_str, key)
+            self.__type_value = value
+        except ValueError:
+            if default is raise_on_missing:
+                raise
+            value = default
+        return value
+
+    def _merge(self, configs: Iterable[DictConfig]):
+        """Merge the current configuration with the given ones"""
+        self.c = cast(DictConfig, OmegaConf.merge(self.c, *configs))
+
     def setup_configuration(
         self,
         conf: Union[DictConfig, str, Dict],  # XXX Type[BaseModel]
@@ -125,22 +133,21 @@ class Configuration:
         :param helpers: Description of parameters used in argument parser helpers
         """
         # merge the configurations
-        # TODO prepare_config?
+        # TODO prepare_config in DictConfig?
+        # TODO type in values
+        if isinstance(conf, str):
+            created_config = OmegaConf.create(conf)
+            if not isinstance(created_config, DictConfig):
+                raise ValueError("The config is not a dict")
+            conf = created_config
         if isinstance(conf, DictConfig):
             config = conf
-        elif isinstance(conf, type):
-            config = OmegaConf.create({})
-            # for f in conf.model_fields:
-            # TODO
         else:
-            # TODO support a.b: v in dicts?
-            created_config = OmegaConf.create(conf)
+            created_config = OmegaConf.create(Configuration._prepare_config(conf))
             if not (created_config and isinstance(created_config, DictConfig)):
                 raise ValueError('Expecting a non-empty dict configuration')
             config = created_config
-        # merging 2 DictConfig
-        config = cast(DictConfig, OmegaConf.merge(self.c, config))
-        self.c = config
+        self._merge([config])
         # setup helpers
         for h_key in helpers:
             key = h_key.split('.', 1)[0]
@@ -161,15 +168,13 @@ class Configuration:
         ]
         conf = OmegaConf.create({})
         for name, value in dotlist:
+            # TODO adapt name something.my_config from something.my.config
             try:
                 conf.merge_with_dotlist([f"{name}={value}"])
             except YAMLError:
                 # if cannot load the value as a dotlist, just add the string
                 OmegaConf.update(conf, name, value)
         return conf
-
-    def _merge(self, configs: Iterable[DictConfig]):
-        self.c = cast(DictConfig, OmegaConf.merge(self.c, *configs))
 
     @staticmethod
     def _prepare_config(conf):
