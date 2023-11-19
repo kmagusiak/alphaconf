@@ -1,24 +1,27 @@
 #!/usr/bin/env python3
 import logging
-from dataclasses import dataclass
+from datetime import date
 from typing import Optional
 
-from omegaconf import OmegaConf
+import pydantic
 
 import alphaconf.cli
 
 
-@dataclass
-class MyConfiguration:
+class MyConfiguration(pydantic.BaseModel):
     name: Optional[str] = None
+    """name variable"""
+    dd: Optional[date] = None
 
 
-alphaconf.setup_configuration({'c': OmegaConf.structured(MyConfiguration)})
+alphaconf.setup_configuration({"c": MyConfiguration})
 
 
 def main():
     """Typed configuration example"""
     logging.info('Got configuration name: %s', alphaconf.get('c.name'))
+    c = alphaconf.get(MyConfiguration)
+    logging.info("Found configuration object:", c)
 
 
 if __name__ == '__main__':

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 import logging
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
-from pydantic import BaseModel, Field, PostgresDsn
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel, Field
 
 import alphaconf.cli
 import alphaconf.logging_util
@@ -12,46 +11,27 @@ import alphaconf.logging_util
 
 class Conn(BaseModel):
     url: str
-    user: str
+    user: str = ""
+    home: Path = Path("~")
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix='MY_PREFIX_', case_sensitive=False)
-
-    foo: str = Field('xxx', alias='myal')
-    bar: str = Field('xxx')
-
-    c: Union[Conn, str] = Conn()
-    d: Optional[PostgresDsn] = None
+class Opts(BaseModel):
+    server: Conn = Field(Conn(url="http://default"), description="Arguments for the demo")
+    show: Optional[str] = Field(None, description="The name of the selection to show")
+    exception: bool = Field(False, description="If set, raise an exception")
 
 
 # adding a default configuration
 # these will be merged with the application
-alphaconf.setup_configuration(
-    """
-server:
-  url: http://default
-  user: ${oc.env:USER}
-  home: "~"
-show: false
-exception: false
-""",
-    {
-        "server": "Arguments for the demo",
-        "show": "The name of the selection to show",
-        "exception": "If set, raise an exception",
-    },
-)
+alphaconf.setup_configuration({"": Opts})
+alphaconf.setup_configuration({"server.user": "${oc.env:USER}"})
 
 
 def main():
     """Simple demo of alphaconf"""
 
-    print(Settings().model_dump())
-    Settings.model_validate
-
     # get the application name from the configuration
-    print('app:', alphaconf.configuration.get().application.name)
+    print('app:', alphaconf.global_configuration.c.application.name)
     # shortcut version to get a configuration value
     print('server.user:', alphaconf.get('server.user'))
     print('server.home', alphaconf.get('server.home', Path))

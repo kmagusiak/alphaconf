@@ -12,7 +12,6 @@ types-toml
 omegaconf>=2
 colorama
 pydantic>=2
-pydantic-settings
 python-dotenv
 invoke
 toml

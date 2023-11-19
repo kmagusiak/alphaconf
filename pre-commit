@@ -12,11 +12,19 @@ pre_commit() {
 	mypy .
 }
 
+format() {
+	black .
+	isort .
+}
+
 # Commands
 case "${1:-run}" in
 	run|lint)
 		pre_commit
 		echo "All good to commit"
+		;;
+	format)
+		format
 		;;
 	install)
 		echo "Installing pre-commit"
@@ -29,5 +37,5 @@ case "${1:-run}" in
 		;;
 	*)
 		echo "Invalid argument: $*"
-		echo "Supported options: lint, install, uninstall"
+		echo "Supported options: lint, format, install, uninstall"
 esac

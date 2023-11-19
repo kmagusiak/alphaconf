@@ -5,8 +5,8 @@
 A small library to ease writing parameterized scripts.
 The goal is to execute a single script and be able to overwrite the parameters
 easily.
-The configuration is based on [OmegaConf](https://omegaconf.readthedocs.io/).
-Optionally, loading from toml is possible.
+The configuration is based on [OmegaConf].
+Optionally, loading from toml or using [pydantic] is possible.
 
 To run multiple related tasks, there is an integration with
 [invoke](https://www.pyinvoke.org).
@@ -23,10 +23,9 @@ To run an application, you need...
 import alphaconf
 import logging
 # define the default values and helpers
-alphaconf.setup_configuration("""
-server:
-    url: http://default
-""", {
+alphaconf.setup_configuration({
+    "server.url": "http://default",
+}, {
     "server.url": "The URL to show here",
 })
 
@@ -36,7 +35,7 @@ def main():
     log.info('has server.user:', alphaconf.get('server.user', bool))
 
 if __name__ == '__main__':
-    alphaconf.run(main)
+    alphaconf.cli.run(main)
 ```
 
 Invoking:
@@ -44,7 +43,7 @@ Invoking:
 python myapp.py server.url=http://github.com
 ```
 
-During an interactive session, you can set the application in the current
+During an *interactive session*, you can set the application in the current
 context.
 ```python
 # import other modules
@@ -64,7 +63,7 @@ Then configuration is built from:
 
 - default configurations defined using (`alphaconf.setup_configuration`)
 - `application` key is generated
-- PYTHON_ALPHACONF may contain a path to a configuration file
+- `PYTHON_ALPHACONF` environment variable may contain a path to load
 - configuration files from configuration directories (using application name)
 - environment variables based on key prefixes,
   except "BASE" and "PYTHON";
@@ -77,13 +76,14 @@ Finally, the configuration is fully resolved and logging is configured.
 
 ## Configuration templates and resolvers
 
-Omegaconf's resolvers may be used as configuration values.
+[OmegaConf]'s resolvers may be used as configuration values.
 For example, `${oc.env:USER,me}` would resolve to the environment variable
 USER with a default value "me".
 Similarly, `${oc.select:path}` will resolve to another configuration value.
 
 Additional resolvers are added to read file contents.
 These are the same as type casts: read_text, read_strip, read_bytes.
+-- TODO use secrets for v1
 
 The select is used to build multiple templates for configurations by providing
 base configurations.
@@ -96,6 +96,7 @@ dict defined in base.logging.default and you can select it using
 ## Configuration values and integrations
 
 ### Typed-configuration
+-- TODO update to pydantic
 
 You can use *omegaconf* with *dataclasses* to specify which values are
 enforced in the configuration.
@@ -123,7 +124,10 @@ alphaconf.setup_configuration({'backup': 'all'})
 alphaconf.invoke.run(__name__, ns)
 ```
 
-### Interactive and manual usage
+## Way to 1.0
+- Secret management
+- Install completions for bash
+- Run a function after importing the module
 
-Use `alphaconf.interactive.mount()` or load manually create an
-`alphaconf.Application`, configure it and set it.
+[OmegaConf]: https://omegaconf.readthedocs.io/
+[pydantic]: https://docs.pydantic.dev/latest/

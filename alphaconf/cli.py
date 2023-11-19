@@ -1,14 +1,10 @@
-import contextvars
-import logging
 import sys
-from typing import Callable, List, Optional, TypeVar, Union
+from typing import Callable, Optional, Sequence, TypeVar, Union
 
 from omegaconf import MissingMandatoryValue, OmegaConf
 
-# absolute import to make sure it's properly initialized
-import alphaconf
-
-from .internal import Application
+from . import set_application
+from .internal.application import Application
 from .internal.arg_parser import ArgumentError, ExitApplication
 
 T = TypeVar('T')
@@ -16,10 +12,11 @@ T = TypeVar('T')
 
 def run(
     main: Callable[[], T],
-    arguments: Union[bool, List[str]] = True,
+    arguments: Union[bool, Sequence[str]] = True,
     *,
     should_exit: bool = True,
     app: Optional[Application] = None,
+    setup_logging: bool = True,
     **config,
 ) -> Optional[T]:
     """Run this application
@@ -33,10 +30,7 @@ def run(
     :param config: Arguments passed to Application.__init__() and Application.setup_configuration()
     :return: The result of main
     """
-    from .internal import application_log as log
-
-    if 'setup_logging' not in config:
-        config['setup_logging'] = True
+    # Create the application if needed
     if app is None:
         properties = {
             k: config.pop(k)
@@ -55,8 +49,21 @@ def run(
             else:
                 properties['description'] = properties['short_description']
         app = Application(**properties)
+    log = app.log
+
+    # Setup the application
     try:
-        app.setup_configuration(arguments, **config)
+        if arguments is True:
+            arguments = sys.argv[1:]
+        if not isinstance(arguments, list):
+            arguments = []
+        app.setup_configuration(arguments=arguments, **config)
+        set_application(app)
+        configuration = app.configuration
+        if setup_logging:
+            from .logging_util import setup_application_logging
+
+            setup_application_logging(configuration.get('logging', default=None))
     except MissingMandatoryValue as e:
         log.error(e)
         if should_exit:
@@ -72,35 +79,22 @@ def run(
         if should_exit:
             sys.exit()
         return None
-    context = contextvars.copy_context()
-    try:
-        return context.run(__run_application, app=app, main=main, exc_info=should_exit)
-    except Exception:
-        if should_exit:
-            log.debug('Exit application')
-            sys.exit(1)
-        raise
 
-
-def __run_application(app: Application, main: Callable[[], T], exc_info=True) -> T:
-    """Set the application and execute main"""
-    alphaconf.configuration.set(app.configuration)
-    app_log = logging.getLogger()
-    if testing := alphaconf.get('testing'):
-        app_log.info('Testing (%s: %s)', app.name, main.__qualname__)
-        return testing
     # Run the application
+    if configuration.get('testing', bool, default=False):
+        log.info('Testing (%s: %s)', app.name, main.__qualname__)
+        return None
     try:
-        app_log.info('Start (%s: %s)', app.name, main.__qualname__)
-        for missing_key in OmegaConf.missing_keys(alphaconf.configuration.get()):
-            app_log.warning('Missing configuration key: %s', missing_key)
+        log.info('Start (%s: %s)', app.name, main.__qualname__)
+        for missing_key in OmegaConf.missing_keys(configuration.c):
+            log.warning('Missing configuration key: %s', missing_key)
         result = main()
         if result is None:
-            app_log.info('End.')
+            log.info('End.')
         else:
-            app_log.info('End: %s', result)
+            log.info('End: %s', result)
         return result
     except Exception as e:
         # no need to log exc_info beacause the parent will handle it
-        app_log.error('Failed (%s) %s', type(e).__name__, e, exc_info=exc_info)
+        log.error('Failed (%s) %s', type(e).__name__, e, exc_info=should_exit)
         raise

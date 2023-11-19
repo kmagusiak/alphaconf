@@ -5,6 +5,7 @@ __pycache__
 # Local env
 .env
 .venv
+/local*
 
 # Other tools
 dist
