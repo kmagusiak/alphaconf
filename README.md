@@ -76,7 +76,7 @@ Finally, the configuration is fully resolved and logging is configured.
 
 ## Configuration templates and resolvers
 
-[OmegaConf]'s resolvers may be used as configuration values.
+Configuration values are resolved by [OmegaConf].
 For example, `${oc.env:USER,me}` would resolve to the environment variable
 USER with a default value "me".
 Similarly, `${oc.select:path}` will resolve to another configuration value.
@@ -96,13 +96,13 @@ dict defined in base.logging.default and you can select it using
 ## Configuration values and integrations
 
 ### Typed-configuration
--- TODO update to pydantic
 
-You can use *omegaconf* with *dataclasses* to specify which values are
+You can use [OmegaConf] with [pydantic] to specify which values are
 enforced in the configuration.
 Alternatively, the *get* method can receive a data type or a function
 which will parse the value.
 By default, bool, str, Path, DateTime, etc. are supported.
+TODO describe more, use pydantic to build factories
 
 ### Secrets
 
