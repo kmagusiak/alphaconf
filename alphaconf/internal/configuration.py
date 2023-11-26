@@ -138,8 +138,14 @@ class Configuration:
         :param path: The path to add the configuration to
         """
         if isinstance(conf, type):
+            conf_type = conf
+        elif pydantic and issubclass(type(conf), pydantic.BaseModel):
+            conf_type = type(conf)
+        else:
+            conf_type = None
+        if conf_type:
             # if already registered, set path to None
-            self.__type_path[conf] = None if conf in self.__type_path else path
+            self.__type_path[conf_type] = None if conf_type in self.__type_path else path
         if path and not path.endswith('.'):
             path += "."
         if isinstance(conf, str):

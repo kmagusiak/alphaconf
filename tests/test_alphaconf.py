@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from omegaconf import DictConfig, OmegaConf
 
@@ -110,3 +112,28 @@ def test_secret_masks():
     finally:
         alphaconf.SECRET_MASKS.clear()
         alphaconf.SECRET_MASKS.extend(masks)
+
+
+def test_app_setup_configuration(application):
+    application.setup_configuration(
+        arguments=['a=x'], load_dotenv=False, env_prefixes=False, resolve_configuration=False
+    )
+    assert application.configuration.get('a') == 'x'
+
+
+def test_app_environ(application):
+    alphaconf.setup_configuration({"testmyenv": {"x": 1}})
+    os.environ.update(
+        {
+            'XXX': 'not set',
+            'TESTMYENV_X': 'overwrite',
+            'TESTMYENV_Y': 'new',
+        }
+    )
+    application.setup_configuration(load_dotenv=False, env_prefixes=True)
+    config = application.configuration
+    with pytest.raises(ValueError):
+        # XXX should not be loaded
+        config.get('xxx')
+    assert config.get('testmyenv.x') == 'overwrite'
+    assert config.get('testmyenv.y') == 'new'

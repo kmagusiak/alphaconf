@@ -162,7 +162,7 @@ class Application:
         resolve_configuration: bool = True,
     ):
         from .. import _global_configuration as ctx_configuration
-        from .env_vars import try_dotenv
+        from .dotenv_vars import try_dotenv
 
         try_dotenv(load_dotenv=load_dotenv)
 

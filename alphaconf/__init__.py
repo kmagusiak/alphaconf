@@ -53,12 +53,6 @@ def set_application(app: Application) -> None:
 
     This loads the configuration and initializes the application.
     The function may raise ExitApplication.
-
-    :param arguments: The argument list to parse (default: True to parse sys.argv)
-    :param load_dotenv: Whether to load dotenv environment (default: yes if installed)
-    :param env_prefixes: The env prefixes to load the configuration values from (default: auto)
-    :param resolve_configuration: Test whether the configuration can be resolved (default: True)
-    :param setup_logging: Whether to setup logging (default: True)
     """
     global _application, get
     if _application is app:
