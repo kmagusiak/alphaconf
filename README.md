@@ -32,7 +32,7 @@ alphaconf.setup_configuration({
 def main():
     log = logging.getLogger()
     log.info('server.url:', alphaconf.get('server.url'))
-    log.info('has server.user:', alphaconf.get('server.user', bool))
+    log.info('has server.user:', alphaconf.get('server.user', bool, default=False))
 
 if __name__ == '__main__':
     alphaconf.cli.run(main)
@@ -110,6 +110,7 @@ When showing the configuration, by default configuration keys which are
 secrets, keys or passwords will be masked.
 Another good practice is to have a file containing the password which
 you can retrieve using `alphaconf.get('secret_file', 'read_strip')`.
+TODO do better than this, also pydantic.SecretStr?
 
 ### Invoke integration
 
@@ -125,9 +126,9 @@ alphaconf.invoke.run(__name__, ns)
 ```
 
 ## Way to 1.0
-- Secret management
-- Install completions for bash
-- Run a function after importing the module
+- Run a specific function `alphaconf.cli.run_module()`:
+  find functions and parse their args
+- Install completions for bash `alphaconf --install-autocompletion`
 
 [OmegaConf]: https://omegaconf.readthedocs.io/
 [pydantic]: https://docs.pydantic.dev/latest/

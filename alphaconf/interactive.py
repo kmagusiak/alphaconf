@@ -16,10 +16,10 @@ def mount(configuration_paths: List[str] = [], setup_logging: bool = True):
     application.setup_configuration(configuration_paths=configuration_paths)
     set_application(application)
     if setup_logging:
-        import logging_util
+        from . import logging_util
 
         logging_util.setup_application_logging(
-            application.configuration.get('logging'), default=None
+            application.configuration.get('logging', default=None)
         )
     logging.info('Mounted interactive application')
 
