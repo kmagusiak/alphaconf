@@ -1,5 +1,7 @@
 import copy
 import os
+import typing
+import warnings
 from enum import Enum
 from typing import (
     Any,
@@ -16,7 +18,7 @@ from typing import (
 
 from omegaconf import Container, DictConfig, OmegaConf
 
-from .type_resolvers import convert_to_type
+from .type_resolvers import convert_to_type, pydantic
 
 T = TypeVar('T')
 
@@ -31,7 +33,7 @@ _cla_type = type
 
 class Configuration:
     c: DictConfig
-    __type_path: MutableMapping[Type, str]
+    __type_path: MutableMapping[Type, Optional[str]]
     __type_value: MutableMapping[Type, Any]
     helpers: Dict[str, str]
 
@@ -96,7 +98,7 @@ class Configuration:
             return value
         if isinstance(value, Container):
             value = OmegaConf.to_object(value)
-        if type is not None:
+        if type is not None and default is not None:
             value = convert_to_type(value, type)
         return value
 
@@ -124,36 +126,44 @@ class Configuration:
 
     def setup_configuration(
         self,
-        conf: Union[DictConfig, str, Dict],  # XXX Type[BaseModel]
-        helpers: Dict[str, str] = {},  # XXX deprecated arg?
+        conf: Union[DictConfig, dict, Any],
+        helpers: Dict[str, str] = {},
+        *,
+        path: str = "",
     ):
         """Add a default configuration
 
         :param conf: The configuration to merge into the global configuration
         :param helpers: Description of parameters used in argument parser helpers
+        :param path: The path to add the configuration to
         """
-        # merge the configurations
-        # TODO prepare_config in DictConfig?
-        # TODO type in values
+        if isinstance(conf, type):
+            # if already registered, set path to None
+            self.__type_path[conf] = None if conf in self.__type_path else path
+        if path and not path.endswith('.'):
+            path += "."
         if isinstance(conf, str):
+            warnings.warn("provide a dict directly", DeprecationWarning)
             created_config = OmegaConf.create(conf)
             if not isinstance(created_config, DictConfig):
                 raise ValueError("The config is not a dict")
             conf = created_config
         if isinstance(conf, DictConfig):
-            config = conf
+            config = self.__prepare_dictconfig(conf, path=path)
         else:
-            created_config = OmegaConf.create(Configuration._prepare_config(conf))
-            if not (created_config and isinstance(created_config, DictConfig)):
-                raise ValueError('Expecting a non-empty dict configuration')
+            created_config = self.__prepare_config(conf, path=path)
+            if not isinstance(created_config, DictConfig):
+                raise ValueError("Failed to convert to a DictConfig")
             config = created_config
+        # add path and merge
+        if path:
+            config = self.__add_path(config, path.rstrip("."))
         self._merge([config])
-        # setup helpers
-        for h_key in helpers:
-            key = h_key.split('.', 1)[0]
-            if not config or key not in config:
-                raise ValueError('Invalid helper not in configuration [%s]' % key)
         self.helpers.update(**helpers)
+
+    def add_helper(self, key, description):
+        """Assign a helper description"""
+        self.helpers[key] = description
 
     def from_environ(self, prefixes: Iterable[str]) -> DictConfig:
         """Load environment variables into a dict configuration"""
@@ -176,14 +186,71 @@ class Configuration:
                 OmegaConf.update(conf, name, value)
         return conf
 
-    @staticmethod
-    def _prepare_config(conf):
-        if not isinstance(conf, dict):
-            return conf
-        for k, v in conf.items():
+    def __prepare_dictconfig(
+        self, obj: DictConfig, path: str, recursive: bool = True
+    ) -> DictConfig:
+        sub_configs = []
+        for k, v in obj.items_ex(resolve=False):
+            if not isinstance(k, str):
+                raise ValueError("Expecting only str instances in dict")
+            if recursive:
+                v = self.__prepare_config(v, path + k + ".")
             if '.' in k:
-                parts = k.split('.')
-                k = parts[0]
-                v = {'.'.join(parts[1:]): v}
-            conf[k] = Configuration._prepare_config(v)
-        return conf
+                obj.pop(k)
+                sub_configs.append(self.__add_path(v, k))
+        if sub_configs:
+            obj = cast(DictConfig, OmegaConf.unsafe_merge(obj, *sub_configs))
+        return obj
+
+    def __prepare_config(self, obj, path):
+        if isinstance(obj, DictConfig):
+            return self.__prepare_dictconfig(obj, path)
+        if pydantic:
+            obj = self.__prepare_pydantic(obj, path)
+        if isinstance(obj, dict):
+            result = {}
+            changed = False
+            for k, v in obj.items():
+                result[k] = nv = self.__prepare_config(v, path + k + ".")
+                changed |= v is not nv
+            if not changed:
+                result = obj
+            return self.__prepare_dictconfig(OmegaConf.create(result), path, recursive=False)
+        return obj
+
+    def __prepare_pydantic(self, obj, path):
+        if isinstance(obj, pydantic.BaseModel):
+            # pydantic instance, prepare helpers
+            self.__prepare_pydantic(type(obj), path)
+            return obj.model_dump(mode="json")
+        # parse typing recursively for documentation
+        for t in typing.get_args(obj):
+            self.__prepare_pydantic(t, path)
+        # check if not a type
+        if not isinstance(obj, type):
+            return obj
+        # prepare documentation from types
+        if issubclass(obj, pydantic.BaseModel):
+            # pydantic type
+            defaults = {}
+            for k, field in obj.model_fields.items():
+                check_type = True
+                if field.default is not pydantic.fields._Unset:
+                    defaults[k] = field.default
+                    check_type = not bool(defaults[k])
+                elif field.is_required():
+                    defaults[k] = "???"
+                else:
+                    defaults[k] = None
+                if desc := (field.description or field.title):
+                    self.add_helper(path + k, desc)
+                if check_type and field.annotation:
+                    self.__prepare_pydantic(field.annotation, path + k + ".")
+            return defaults
+        return None
+
+    @staticmethod
+    def __add_path(config: Any, path: str) -> DictConfig:
+        for part in reversed(path.split(".")):
+            config = OmegaConf.create({part: config})
+        return config

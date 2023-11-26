@@ -77,7 +77,7 @@ def run(
     app: Optional[Application] = None,
     **config,
 ) -> Optional[T]:
-    """Run this application
+    """Run this application (deprecated)
 
     If an application is not given, a new one will be created with configuration properties
     taken from the config. Also, by default logging is set up.
@@ -156,3 +156,4 @@ def __alpha_configuration():
 
 # Initialize configuration
 __alpha_configuration()
+__all__ = ["get", "setup_configuration", "set_application", "Application", "frozendict"]

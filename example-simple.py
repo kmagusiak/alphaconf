@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import logging
-from pathlib import Path
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -9,32 +8,32 @@ import alphaconf.cli
 import alphaconf.logging_util
 
 
-class Conn(BaseModel):
-    url: str
-    user: str = ""
-    home: Path = Path("~")
-
-
 class Opts(BaseModel):
-    server: Conn = Field(Conn(url="http://default"), description="Arguments for the demo")
     show: Optional[str] = Field(None, description="The name of the selection to show")
     exception: bool = Field(False, description="If set, raise an exception")
 
 
 # adding a default configuration
 # these will be merged with the application
-alphaconf.setup_configuration({"": Opts})
-alphaconf.setup_configuration({"server.user": "${oc.env:USER}"})
+alphaconf.setup_configuration(Opts)
+alphaconf.setup_configuration(
+    {
+        "server": {
+            "name": "test_server",
+            "user": "${oc.env:USER}",
+        }
+    }
+)
 
 
 def main():
     """Simple demo of alphaconf"""
 
     # get the application name from the configuration
-    print('app:', alphaconf.global_configuration.c.application.name)
+    print('app:', alphaconf.get("application.name"))
     # shortcut version to get a configuration value
+    print('server.name', alphaconf.get('server.name'))
     print('server.user:', alphaconf.get('server.user'))
-    print('server.home', alphaconf.get('server.home', Path))
 
     # you can set additional dynamic values in the logging
     context_value = ['init']
@@ -46,11 +45,11 @@ def main():
 
     logging.info('Just a log')
     # show configuration
-    value = alphaconf.get('show', str)
-    if value and (value := alphaconf.get(value)):
+    value = alphaconf.get('show', str, default=None)
+    if value and (value := alphaconf.get(value, default=None)):
         print(value)
     # log an exception if we have it in the configuration
-    if alphaconf.get('exception'):
+    if alphaconf.get('exception', default=False):
         try:
             raise RuntimeError("Asked to raise something")
         except Exception:
