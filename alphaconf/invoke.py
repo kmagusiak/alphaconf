@@ -3,8 +3,8 @@ from typing import Dict, Union
 import invoke
 from omegaconf import OmegaConf
 
-from . import run as _application_run
-from .internal import Application, arg_parser
+from .cli import run as _application_run
+from .internal import application, arg_parser
 
 __doc__ = """Invoke wrapper for an application
 
@@ -18,12 +18,14 @@ Instead of a collection, you could pass `globals()`.
 
 
 class InvokeAction(arg_parser.Action):
+    """Apped value to the result and let invoke run (stop parsing)"""
+
     def handle(self, result, value):
         result.rest.append(value)
         return 'stop'
 
 
-class InvokeApplication(Application):
+class InvokeApplication(application.Application):
     """Application that launched an invoke.Program"""
 
     def __init__(self, namespace: invoke.Collection, **properties) -> None:
@@ -36,22 +38,22 @@ class InvokeApplication(Application):
         )
 
     def _handle_parsed_result(self):
-        if self.parsed.result:
-            return self.parsed.result.run(self)
-        return None
+        if self.parsed.rest:
+            return None
+        return super()._handle_parsed_result()
 
     def run_program(self):
         """Create and run the invoke program"""
-        argv = [self.name] + self.parsed.rest
+        argv = [self.name, *self.parsed.rest]
         namespace = self.namespace
-        configuration = OmegaConf.to_object(self.configuration)
+        configuration = OmegaConf.to_object(self.configuration.c)
         namespace.configure(configuration)
         prog = invoke.Program(namespace=namespace, binary=self.name)
         return prog.run(argv)
 
 
 def collection(variables: Dict = {}) -> invoke.Collection:
-    """Create a new collection"""
+    """Create a new collection base on tasks in the variables"""
     return invoke.Collection(*[v for v in variables.values() if isinstance(v, invoke.Task)])
 
 
@@ -69,9 +71,12 @@ def run(
         _application_run(app.run_program, app=app)
     else:
         # Just configure the namespace and set the application
-        from . import get, set_application
+        import alphaconf
+        import alphaconf.logging_util
 
-        app.setup_configuration(arguments=False, load_dotenv=False, setup_logging=True)
-        set_application(app, merge=True)
-        ns.configure(get(""))
+        alphaconf.set_application(app)
+        ns.configure(alphaconf.get(""))
+        alphaconf.logging_util.setup_application_logging(
+            app.configuration.get('logging', default=None)
+        )
     return app

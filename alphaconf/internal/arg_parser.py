@@ -1,5 +1,5 @@
 import itertools
-from typing import Dict, Iterable, List, Optional, Tuple, Type, Union, cast
+from typing import Dict, Iterable, List, Mapping, Optional, Tuple, Type, Union, cast
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -74,9 +74,13 @@ class VersionAction(Action):
 
     def run(self, app):
         prog = app.name
-        version = app.version
-        print(f"{prog} {version}")
-        desc = app.short_description
+        p = app.properties
+        version = p.get('version')
+        if version:
+            print(f"{prog} {version}")
+        else:
+            print(prog)
+        desc = p.get('short_description')
         if desc:
             print(desc)
         raise ExitApplication
@@ -167,12 +171,12 @@ class ArgumentParser:
 
     _opt_actions: Dict[str, Action]
     _pos_actions: List[Action]
-    help_messages: Dict[str, str]
+    help_messages: Mapping[str, str]
 
-    def __init__(self) -> None:
+    def __init__(self, help_messages: Mapping[str, str] = {}) -> None:
         self._opt_actions = {}
         self._pos_actions = []
-        self.help_messages = {}
+        self.help_messages = help_messages or {}
 
     def parse_args(self, arguments: List[str]) -> ParseResult:
         """Parse the argument"""
@@ -269,9 +273,8 @@ class ArgumentParser:
             lines.append('positional arguments:')
             for action in self._pos_actions:
                 lines.append(tpl.format(action.metavar or '', action.help or ''))
-        if self.help_messages:
-            for name, help in self.help_messages.items():
-                lines.append(tpl.format(name, help))
+        for name, help in self.help_messages.items():
+            lines.append(tpl.format(name, help))
         print(*lines, sep='\n')
 
 
@@ -288,7 +291,7 @@ def configure_parser(parser: ArgumentParser, *, app=None):
         '--help',
         help="Show the help",
     )
-    if app and app.version:
+    if app and app.properties.get('version'):
         parser.add_argument(
             VersionAction,
             '-V',

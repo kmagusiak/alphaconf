@@ -3,7 +3,7 @@ import json
 import logging
 import traceback
 from logging import Formatter, LogRecord
-from typing import Any, Callable
+from typing import Any, Callable, Union
 
 try:
     import colorama
@@ -35,6 +35,28 @@ if colorama:
 
 """Fields of a default log record"""
 _LOG_RECORD_FIELDS = set(logging.makeLogRecord({}).__dict__.keys())
+
+
+def setup_application_logging(configuration: Union[dict, None]) -> None:
+    """Setup logging
+
+    Set the time to GMT, log key 'logging' from configuration or if none, base logging.
+    """
+    import logging
+
+    set_gmt()
+    log = logging.getLogger()
+    if configuration:
+        # Configure using the st configuration
+        import logging.config
+
+        logging.config.dictConfig(configuration)
+    elif len(log.handlers) == 0:
+        # Default logging if not yet initialized
+        output = logging.StreamHandler()
+        output.setFormatter(ColorFormatter())
+        log.addHandler(output)
+        log.setLevel(logging.INFO)
 
 
 def set_gmt(enable: bool = True):

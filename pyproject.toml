@@ -11,9 +11,9 @@ name = "alphaconf"
 dynamic = ["version"]
 description = "Write simple scripts leveraging omegaconf"
 readme = "README.md"
-keywords = ["configuration", "omegaconf", "script"]
+keywords = ["configuration", "omegaconf", "pydantic", "script"]
 license = {text = "BSD License"}
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     # https://pypi.org/pypi?%3Aaction=list_classifiers
     "Programming Language :: Python :: 3",
@@ -23,6 +23,7 @@ classifiers = [
 ]
 dependencies = [
     "omegaconf>=2",
+    "pydantic>=2",
 ]
 
 [project.optional-dependencies]

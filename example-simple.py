@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
 import logging
-from pathlib import Path
+from typing import Optional
 
-import alphaconf
+from pydantic import BaseModel, Field
+
+import alphaconf.cli
 import alphaconf.logging_util
+
+
+class Opts(BaseModel):
+    show: Optional[str] = Field(None, description="The name of the selection to show")
+    exception: bool = Field(False, description="If set, raise an exception")
+
 
 # adding a default configuration
 # these will be merged with the application
+alphaconf.setup_configuration(Opts)
 alphaconf.setup_configuration(
-    """
-server:
-  url: http://default
-  user: ${oc.env:USER}
-  home: "~"
-show: false
-exception: false
-""",
     {
-        "server": "Arguments for the demo",
-        "show": "The name of the selection to show",
-        "exception": "If set, raise an exception",
-    },
+        "server": {
+            "name": "test_server",
+            "user": "${oc.env:USER}",
+        }
+    }
 )
 
 
@@ -28,10 +30,10 @@ def main():
     """Simple demo of alphaconf"""
 
     # get the application name from the configuration
-    print('app:', alphaconf.configuration.get().application.name)
+    print('app:', alphaconf.get("application.name"))
     # shortcut version to get a configuration value
+    print('server.name', alphaconf.get('server.name'))
     print('server.user:', alphaconf.get('server.user'))
-    print('server.home', alphaconf.get('server.home', Path))
 
     # you can set additional dynamic values in the logging
     context_value = ['init']
@@ -43,11 +45,11 @@ def main():
 
     logging.info('Just a log')
     # show configuration
-    value = alphaconf.get('show', str)
-    if value and (value := alphaconf.get(value)):
+    value = alphaconf.get('show', str, default=None)
+    if value and (value := alphaconf.get(value, default=None)):
         print(value)
     # log an exception if we have it in the configuration
-    if alphaconf.get('exception'):
+    if alphaconf.get('exception', default=False):
         try:
             raise RuntimeError("Asked to raise something")
         except Exception:
@@ -57,7 +59,7 @@ def main():
 
 if __name__ == '__main__':
     # running with explicit parameters
-    alphaconf.run(
+    alphaconf.cli.run(
         main,
         name='example',
         version='0.1',

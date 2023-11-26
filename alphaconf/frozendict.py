@@ -1,5 +1,3 @@
-import sys
-
 # Performance of this small dict is enough for most cases.
 # Only when the dict becomes big, the copy strategy is slower after the
 # dict contains over a few hundred of elements. So we'll keep it simple,
@@ -31,15 +29,13 @@ class FrozenDict(dict):
     def fromkeys(cls, it, v=None):
         return FrozenDict((i, v) for i in it)
 
-    if sys.version_info >= (3, 9):
+    def __or__(self, value):
+        return FrozenDict({**self, **value})
 
-        def __or__(self, value):
-            return FrozenDict({**self, **value})
+    def __ror__(self, value):
+        return FrozenDict({**value, **self})
 
-        def __ror__(self, value):
-            return FrozenDict({**value, **self})
-
-        __ior__ = _immutable  # type: ignore
+    __ior__ = _immutable  # type: ignore
 
 
 frozendict = FrozenDict
