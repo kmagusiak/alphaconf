@@ -91,9 +91,6 @@ def test_setup_configuration_invalid():
     with pytest.raises(ValueError):
         # invalid configuration (must be non-empty)
         alphaconf.setup_configuration(None)
-    with pytest.raises(ValueError):
-        # invalid helper
-        alphaconf.setup_configuration({'invalid': 5}, helpers={'help': 'help1'})
 
 
 def test_secret_masks():

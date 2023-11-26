@@ -141,9 +141,13 @@ def __alpha_configuration():
                 ' %(name)s [%(process)s,%(threadName)s]: %(message)s',
             },
         },
-        'handlers': {},
+        'handlers': {
+            'null': {
+                'class': 'logging.NullHandler',
+            },
+        },
         'root': {
-            'handlers': [],
+            'handlers': ['null'],
             'level': 'INFO',
         },
     }
