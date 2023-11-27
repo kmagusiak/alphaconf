@@ -77,16 +77,16 @@ Finally, the configuration is fully resolved and logging is configured.
 ## Configuration templates and resolvers
 
 Configuration values are resolved by [OmegaConf].
-For example, `${oc.env:USER,me}` would resolve to the environment variable
-USER with a default value "me".
-Similarly, `${oc.select:path}` will resolve to another configuration value.
+Some of the resolvers (standard and custom):
+- `${oc.env:USER,me}`: resolve the environment variable USER
+  with a default value "me"
+- `${oc.select:config_path}`: resolve to another configuration value
+- `${read_text:file_path}`: read text contents of a file as `str`
+- `${read_bytes:file_path}`: read contents of a file as `bytes`
+- `${read_strip:file_path}`: read text contents of a file as strip spaces
 
-Additional resolvers are added to read file contents.
-These are the same as type casts: read_text, read_strip, read_bytes.
--- TODO use secrets for v1
-
-The select is used to build multiple templates for configurations by providing
-base configurations.
+The *oc.select* is used to build multiple templates for configurations
+by providing base configurations.
 An argument `--select key=template` is a shortcut for
 `key=${oc.select:base.key.template}`.
 So, `logging: ${oc.select:base.logging.default}` resolves to the configuration
@@ -97,20 +97,30 @@ dict defined in base.logging.default and you can select it using
 
 ### Typed-configuration
 
-You can use [OmegaConf] with [pydantic] to specify which values are
-enforced in the configuration.
-Alternatively, the *get* method can receive a data type or a function
-which will parse the value.
-By default, bool, str, Path, DateTime, etc. are supported.
-TODO describe more, use pydantic to build factories
+You can use [OmegaConf] with [pydantic] to *get* typed values.
+```python
+class MyConf(pydantic.BaseModel):
+    value: int = 0
+
+    def build(self):
+        # use as a factory pattern to create more complex objects
+        return self.value * 2
+
+# setup the configuration
+alphaconf.setup_configuration(MyConf, path='a')
+# read the value
+alphaconf.get('a', MyConf)
+v = alphaconf.get(MyConf)  # because it's registered as a type
+```
 
 ### Secrets
 
 When showing the configuration, by default configuration keys which are
 secrets, keys or passwords will be masked.
-Another good practice is to have a file containing the password which
-you can retrieve using `alphaconf.get('secret_file', 'read_strip')`.
-TODO do better than this, also pydantic.SecretStr?
+You can read values or passwords from files, by using the template
+`${read_strip:/path_to_file}`
+or, more securely, read the file in the code
+`alphaconf.get('secret_file', Path).read_text().strip()`.
 
 ### Invoke integration
 
@@ -126,6 +136,7 @@ alphaconf.invoke.run(__name__, ns)
 ```
 
 ## Way to 1.0
+- Run function `@alphaconf.inject`
 - Run a specific function `alphaconf.cli.run_module()`:
   find functions and parse their args
 - Install completions for bash `alphaconf --install-autocompletion`

@@ -34,11 +34,11 @@ TYPE_CONVERTER = {
     datetime.date: lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(),
     datetime.time: datetime.time.fromisoformat,
     Path: lambda s: Path(s).expanduser(),
+    str: lambda v: str(v),
     'read_text': read_text,
     'read_strip': lambda s: read_text(s).strip(),
     'read_bytes': lambda s: Path(s).expanduser().read_bytes(),
 }
-_type = type
 
 # register resolved from strings
 for _name, _function in TYPE_CONVERTER.items():
@@ -50,14 +50,18 @@ def convert_to_type(value, type):
     """Converts a value to the given type.
 
     :param value: Any value
-    :param type: A class or a callable used to convert the value
+    :param type: A class used to convert the value
     :return: Result of the callable
     """
+    if isinstance(type, str):
+        return TYPE_CONVERTER[type](value)
+    # assert isinstance(type, globals().type)
+    if pydantic and issubclass(type, pydantic.BaseModel):
+        return type.model_validate(value)
+    if isinstance(value, type):
+        return value
+    if type in TYPE_CONVERTER:
+        return TYPE_CONVERTER[type](value)
     if pydantic:
-        if issubclass(type, pydantic.BaseModel):
-            type.model_construct
-            return type.model_validate(value)
-        if isinstance(type, _type):
-            return pydantic.TypeAdapter(type).validate_python(value)
-    type = TYPE_CONVERTER.get(type, type)
+        return pydantic.TypeAdapter(type).validate_python(value)
     return type(value)

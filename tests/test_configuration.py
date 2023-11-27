@@ -14,6 +14,7 @@ def config():
         'b': True,
         'num': 5,
         'home': '/home',
+        'with_underscore': "/_\\",
     }
     conf = Configuration()
     conf.setup_configuration(c)
@@ -81,6 +82,38 @@ def test_select_required_incomplete(config_req):
     # when required, raise missing
     with pytest.raises(ValueError):
         print(config_req.get('req'))
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ('a.b', 'a.b'),
+        ('unknown', 'unknown'),
+        ('a.b.zz', 'a.b.zz'),
+        ('b', 'b'),
+    ],
+)
+def test_env_find_name_simple(config, name, expected):
+    assert Configuration._find_name(name.split('.'), config.c) == expected
+
+
+def test_env_find_name_complex():
+    config = Configuration()
+    config.setup_configuration(
+        {
+            'a': {'b': 1},
+            'my_test': {'a': 2},
+            'test_test': {
+                'x': 3,
+                'my_test': 4,
+            },
+        }
+    )
+    c = config.c
+    assert Configuration._find_name(['a', 'b'], c) == 'a.b'
+    assert Configuration._find_name(['my', 'test'], c) == 'my_test'
+    assert Configuration._find_name(['my', 'test', 'a'], c) == 'my_test.a'
+    assert Configuration._find_name(['test', 'test', 'my', 'test'], c) == 'test_test.my_test'
 
 
 def test_config_setup_dots(config):
