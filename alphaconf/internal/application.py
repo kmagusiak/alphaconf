@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import uuid
-from typing import Iterable, List, MutableMapping, Optional, Tuple, Union, cast
+from typing import Callable, Iterable, List, MutableMapping, Optional, Tuple, Union, cast
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -24,7 +24,7 @@ class Application:
     def __init__(
         self,
         *,
-        name=None,
+        name: Optional[str] = None,
         **properties,
     ) -> None:
         """Initialize the application.
@@ -237,7 +237,7 @@ class Application:
         return config
 
     @staticmethod
-    def __mask_config(obj, check, replace, path=''):
+    def __mask_config(obj, check: Callable[[str], bool], replace: Callable, path: str = ''):
         """Alter the configuration dict
 
         :param config: The value to mask
@@ -264,7 +264,7 @@ class Application:
             ]
         return obj
 
-    def print_help(self, *, arguments=True):
+    def print_help(self, *, arguments: bool = True):
         """Print the help message
         Set the arguments to False to disable printing them."""
         prop = self.properties

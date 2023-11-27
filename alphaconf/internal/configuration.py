@@ -7,6 +7,7 @@ from typing import (
     Any,
     Dict,
     Iterable,
+    List,
     MutableMapping,
     Optional,
     Type,
@@ -62,7 +63,7 @@ class Configuration:
     def get(
         self,
         key: str,
-        type: Union[str, Type[T], None] = None,
+        type: Union[str, None] = None,
         *,
         default: Any = raise_on_missing,
     ) -> Any:
@@ -146,6 +147,7 @@ class Configuration:
         if conf_type:
             # if already registered, set path to None
             self.__type_path[conf_type] = None if conf_type in self.__type_path else path
+            self.__type_value.pop(conf_type, None)
         if path and not path.endswith('.'):
             path += "."
         if isinstance(conf, str):
@@ -164,7 +166,9 @@ class Configuration:
         # add path and merge
         if path:
             config = self.__add_path(config, path.rstrip("."))
+            helpers = {path + k: v for k, v in helpers.items()}
         self._merge([config])
+        # helpers
         self.helpers.update(**helpers)
 
     def add_helper(self, key, description):
@@ -178,19 +182,38 @@ class Configuration:
         trans = str.maketrans('_', '.', '"\\=')
         prefixes = tuple(prefixes)
         dotlist = [
-            (name.lower().translate(trans), value)
+            (name.lower().translate(trans).strip('.'), value)
             for name, value in os.environ.items()
             if name.startswith(prefixes)
         ]
         conf = OmegaConf.create({})
         for name, value in dotlist:
-            # TODO adapt name something.my_config from something.my.config
+            name = Configuration._find_name(name.split('.'), self.c)
             try:
                 conf.merge_with_dotlist([f"{name}={value}"])
             except YAMLError:
                 # if cannot load the value as a dotlist, just add the string
                 OmegaConf.update(conf, name, value)
         return conf
+
+    @staticmethod
+    def _find_name(parts: List[str], conf: DictConfig) -> str:
+        """Find a name from parts, by trying joining with '.' (default) or '_'"""
+        if len(parts) < 2:
+            return "".join(parts)
+        name = ""
+        for next_offset, part in enumerate(parts, 1):
+            if name:
+                name += "_"
+            name += part
+            if name in conf.keys():
+                sub_conf = conf.get(name)
+                if next_offset == len(parts):
+                    return name
+                elif isinstance(sub_conf, DictConfig):
+                    return name + "." + Configuration._find_name(parts[next_offset:], sub_conf)
+                return ".".join([name, *parts[next_offset:]])
+        return ".".join(parts)
 
     def __prepare_dictconfig(
         self, obj: DictConfig, path: str, recursive: bool = True
@@ -248,9 +271,15 @@ class Configuration:
                     defaults[k] = "???"
                 else:
                     defaults[k] = None
+                # description
                 if desc := (field.description or field.title):
                     self.add_helper(path + k, desc)
-                if check_type and field.annotation:
+                # check the type
+                if field.annotation == pydantic.SecretStr:
+                    from alphaconf import SECRET_MASKS
+
+                    SECRET_MASKS.append(lambda s: s == path)
+                elif check_type and field.annotation:
                     self.__prepare_pydantic(field.annotation, path + k + ".")
             return defaults
         return None

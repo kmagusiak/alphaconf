@@ -1,6 +1,6 @@
 import re
 import warnings
-from typing import Callable, Optional, Sequence, TypeVar, Union
+from typing import Callable, MutableSequence, Optional, Sequence, TypeVar, Union
 
 from .frozendict import frozendict  # noqa: F401 (expose)
 from .internal.application import Application
@@ -26,9 +26,11 @@ configuration load and logging setup.
 
 """
 
-SECRET_MASKS = [
+SECRET_MASKS: MutableSequence[Callable] = [
     # mask if contains a kind of secret and it's not in a file
-    re.compile(r'.*(key|password|secret)s?(?!_file)(_|$)|^private(_key|$)').match,
+    re.compile(
+        r'.*(key|password|secret)s?(?!_file)(?!_path)(_|$)|^(authentication|private)(_key|$)'
+    ).match,
 ]
 """A list of functions which given a key indicate whether it's a secret"""
 
