@@ -130,7 +130,7 @@ class Configuration:
         conf: Union[DictConfig, dict, Any],
         helpers: Dict[str, str] = {},
         *,
-        path: str = "",
+        prefix: str = "",
     ):
         """Add a default configuration
 
@@ -146,10 +146,10 @@ class Configuration:
             conf_type = None
         if conf_type:
             # if already registered, set path to None
-            self.__type_path[conf_type] = None if conf_type in self.__type_path else path
+            self.__type_path[conf_type] = None if conf_type in self.__type_path else prefix
             self.__type_value.pop(conf_type, None)
-        if path and not path.endswith('.'):
-            path += "."
+        if prefix and not prefix.endswith('.'):
+            prefix += "."
         if isinstance(conf, str):
             warnings.warn("provide a dict directly", DeprecationWarning)
             created_config = OmegaConf.create(conf)
@@ -157,16 +157,16 @@ class Configuration:
                 raise ValueError("The config is not a dict")
             conf = created_config
         if isinstance(conf, DictConfig):
-            config = self.__prepare_dictconfig(conf, path=path)
+            config = self.__prepare_dictconfig(conf, path=prefix)
         else:
-            created_config = self.__prepare_config(conf, path=path)
+            created_config = self.__prepare_config(conf, path=prefix)
             if not isinstance(created_config, DictConfig):
                 raise ValueError("Failed to convert to a DictConfig")
             config = created_config
-        # add path and merge
-        if path:
-            config = self.__add_path(config, path.rstrip("."))
-            helpers = {path + k: v for k, v in helpers.items()}
+        # add prefix and merge
+        if prefix:
+            config = self.__add_prefix(config, prefix.rstrip("."))
+            helpers = {prefix + k: v for k, v in helpers.items()}
         self._merge([config])
         # helpers
         self.helpers.update(**helpers)
@@ -226,7 +226,7 @@ class Configuration:
                 v = self.__prepare_config(v, path + k + ".")
             if '.' in k:
                 obj.pop(k)
-                sub_configs.append(self.__add_path(v, k))
+                sub_configs.append(self.__add_prefix(v, k))
         if sub_configs:
             obj = cast(DictConfig, OmegaConf.unsafe_merge(obj, *sub_configs))
         return obj
@@ -285,7 +285,7 @@ class Configuration:
         return None
 
     @staticmethod
-    def __add_path(config: Any, path: str) -> DictConfig:
-        for part in reversed(path.split(".")):
+    def __add_prefix(config: Any, prefix: str) -> DictConfig:
+        for part in reversed(prefix.split(".")):
             config = OmegaConf.create({part: config})
         return config

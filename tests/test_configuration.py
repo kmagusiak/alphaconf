@@ -132,5 +132,5 @@ def test_config_setup_dots(config):
 
 
 def test_config_setup_path(config):
-    config.setup_configuration({'test': 954}, path='a.b')
+    config.setup_configuration({'test': 954}, prefix='a.b')
     assert config.get('a.b.test') == 954

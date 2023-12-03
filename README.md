@@ -66,10 +66,9 @@ Then configuration is built from:
 - `PYTHON_ALPHACONF` environment variable may contain a path to load
 - configuration files from configuration directories (using application name)
 - environment variables based on key prefixes,
-  except "BASE" and "PYTHON";
+  except "BASE" and "PYTHON"; \
   if you have a configuration key "abc", all environment variables starting
-  with "ABC_" will be loaded where keys are converted to lower case and "_"
-  to ".": "ABC_HELLO=a" would set "abc.hello=a"
+  with "ABC_" will be loaded, for example "ABC_HELLO=a" would set "abc.hello=a"
 - key-values from the program arguments
 
 Finally, the configuration is fully resolved and logging is configured.
@@ -104,10 +103,11 @@ class MyConf(pydantic.BaseModel):
 
     def build(self):
         # use as a factory pattern to create more complex objects
+        # for example, a connection to the database
         return self.value * 2
 
 # setup the configuration
-alphaconf.setup_configuration(MyConf, path='a')
+alphaconf.setup_configuration(MyConf, prefix='a')
 # read the value
 alphaconf.get('a', MyConf)
 v = alphaconf.get(MyConf)  # because it's registered as a type
@@ -136,9 +136,8 @@ alphaconf.invoke.run(__name__, ns)
 ```
 
 ## Way to 1.0
-- Run function `@alphaconf.inject`
-- Run a specific function `alphaconf.cli.run_module()`:
-  find functions and parse their args
+- Run a specific function `alphaconf my.module.main`:
+  find functions and inject args
 - Install completions for bash `alphaconf --install-autocompletion`
 
 [OmegaConf]: https://omegaconf.readthedocs.io/

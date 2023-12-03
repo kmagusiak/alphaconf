@@ -95,6 +95,6 @@ def test_set_person(config_typed):
 
 
 def test_set_person_type(config_typed):
-    config_typed.setup_configuration(Person(first_name='A', last_name='T'), path='x_person')
+    config_typed.setup_configuration(Person(first_name='A', last_name='T'), prefix='x_person')
     person = config_typed.get(Person)
     assert person.full_name == 'A T'

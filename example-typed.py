@@ -20,7 +20,7 @@ class MyConfiguration(BaseModel):
     connection: Optional[Conn] = None
 
 
-alphaconf.setup_configuration(MyConfiguration, path="c")
+alphaconf.setup_configuration(MyConfiguration, prefix="c")
 
 
 def main():

@@ -16,11 +16,7 @@ By the way, you could register new resolvers in OmegaConf.
 """
 
 
-def read_text(value):
-    return Path(value).expanduser().read_text()
-
-
-def parse_bool(value) -> bool:
+def _parse_bool(value) -> bool:
     if isinstance(value, str):
         value = value.strip().lower()
         if value in ('no', 'false', 'n', 'f', 'off', 'none', 'null', 'undefined', '0'):
@@ -29,14 +25,14 @@ def parse_bool(value) -> bool:
 
 
 TYPE_CONVERTER = {
-    bool: parse_bool,
+    bool: _parse_bool,
     datetime.datetime: datetime.datetime.fromisoformat,
     datetime.date: lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(),
     datetime.time: datetime.time.fromisoformat,
-    Path: lambda s: Path(s).expanduser(),
+    Path: lambda s: Path(str(s)).expanduser(),
     str: lambda v: str(v),
-    'read_text': read_text,
-    'read_strip': lambda s: read_text(s).strip(),
+    'read_text': lambda s: Path(s).expanduser().read_text(),
+    'read_strip': lambda s: Path(s).expanduser().read_text().strip(),
     'read_bytes': lambda s: Path(s).expanduser().read_bytes(),
 }
 
