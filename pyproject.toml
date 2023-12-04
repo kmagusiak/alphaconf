@@ -35,6 +35,9 @@ toml = ["toml"]
 [project.urls]
 Homepage = "https://github.com/kmagusiak/alphaconf"
 
+[project.scripts]
+alphaconf = "alphaconf.cli:run"
+
 [[project.authors]]
 name = "Krzysztof Magusiak"
 email = "chrmag@poczta.onet.pl"

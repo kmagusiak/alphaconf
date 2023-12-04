@@ -5,9 +5,18 @@ from omegaconf import MissingMandatoryValue, OmegaConf
 
 from . import set_application
 from .internal.application import Application
-from .internal.arg_parser import ArgumentError, ExitApplication
+from .internal.arg_parser import Action, ArgumentError, ExitApplication
 
 T = TypeVar('T')
+__all__ = ["run"]
+
+
+class CommandAction(Action):
+    pass  # TODO just read a function name, parse rest with this one
+
+
+class CliApplication(Application):
+    pass
 
 
 def run(
