@@ -1,4 +1,5 @@
 import datetime
+import typing
 from pathlib import Path
 
 from omegaconf import OmegaConf
@@ -61,3 +62,12 @@ def convert_to_type(value, type):
     if pydantic:
         return pydantic.TypeAdapter(type).validate_python(value)
     return type(value)
+
+
+def type_from_annotation(annotation) -> typing.Generator[type, None, None]:
+    """Given an annotation (optional), figure out the types"""
+    if isinstance(annotation, type) and annotation is not type(None):
+        yield annotation
+    else:
+        for t in typing.get_args(annotation):
+            yield from type_from_annotation(t)

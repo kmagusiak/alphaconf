@@ -122,6 +122,29 @@ You can read values or passwords from files, by using the template
 or, more securely, read the file in the code
 `alphaconf.get('secret_file', Path).read_text().strip()`.
 
+### Inject parameters
+
+We can inject default values to functions from the configuration.
+Either one by one, where we can map a factory function or a configuration key.
+Or inject all automatically base on the parameter name.
+
+```python
+from alphaconf.inject import inject, inject_auto
+
+@inject('name', 'application.name')
+@inject_auto(ignore={'name'})
+def main(name: str, example=None):
+    pass
+
+# similar to
+def main(name: str=None, example=None):
+    if name is None:
+        name = alphaconf.get('application.name', str)
+    if example is None:
+        example = alphaconf.get('example', default=example)
+    ...
+```
+
 ### Invoke integration
 
 Just add the lines below to parameterize invoke.

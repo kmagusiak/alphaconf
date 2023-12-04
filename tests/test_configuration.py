@@ -48,6 +48,7 @@ def test_cast(config):
     # cast bool into int
     assert config.get('b') is True
     assert config.get('b', int) == 1
+    assert config.get('b', int, default=None) == 1
     # cast Path
     assert isinstance(config.get('home', Path), Path)
 
@@ -71,7 +72,7 @@ def test_select_empty(config):
 
 def test_select_required(config):
     assert config.get('z', default=None) is None
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         print(config.get('z'))
     assert config.get('z', default='a') == 'a'
 
@@ -80,7 +81,7 @@ def test_select_required_incomplete(config_req):
     # when we have a default, return it
     assert config_req.get('req', default='def') == 'def'
     # when required, raise missing
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         print(config_req.get('req'))
 
 
