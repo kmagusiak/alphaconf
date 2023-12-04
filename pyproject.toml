@@ -11,13 +11,13 @@ name = "alphaconf"
 dynamic = ["version"]
 description = "Write simple scripts leveraging omegaconf"
 readme = "README.md"
-keywords = ["configuration", "omegaconf", "script"]
+keywords = ["configuration", "omegaconf", "pydantic", "script"]
 license = {text = "BSD License"}
 requires-python = ">=3.8"
 classifiers = [
     # https://pypi.org/pypi?%3Aaction=list_classifiers
     "Programming Language :: Python :: 3",
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "License :: OSI Approved :: BSD License",
     "Environment :: Console",
 ]
@@ -29,6 +29,7 @@ dependencies = [
 color = ["colorama"]
 dotenv = ["python-dotenv"]
 invoke = ["invoke"]
+pydantic = ["pydantic>=2"]
 toml = ["toml"]
 
 [project.urls]

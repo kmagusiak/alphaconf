@@ -1,12 +1,9 @@
 {
-    "python.formatting.blackArgs": [
+    "black-formatter.args": [
         "--skip-string-normalization",
         "--line-length",
         "100"
     ],
-    "python.formatting.provider": "black",
-	"python.linting.flake8Enabled": false,
-	"python.linting.mypyEnabled": true,
 	"python.testing.pytestArgs": [
 		"tests"
 	],

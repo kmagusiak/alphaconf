@@ -5,8 +5,8 @@
 A small library to ease writing parameterized scripts.
 The goal is to execute a single script and be able to overwrite the parameters
 easily.
-The configuration is based on [OmegaConf](https://omegaconf.readthedocs.io/).
-Optionally, loading from toml is possible.
+The configuration is based on [OmegaConf].
+Optionally, loading from toml or using [pydantic] is possible.
 
 To run multiple related tasks, there is an integration with
 [invoke](https://www.pyinvoke.org).
@@ -23,20 +23,19 @@ To run an application, you need...
 import alphaconf
 import logging
 # define the default values and helpers
-alphaconf.setup_configuration("""
-server:
-    url: http://default
-""", {
+alphaconf.setup_configuration({
+    "server.url": "http://default",
+}, {
     "server.url": "The URL to show here",
 })
 
 def main():
     log = logging.getLogger()
     log.info('server.url:', alphaconf.get('server.url'))
-    log.info('has server.user:', alphaconf.get('server.user', bool))
+    log.info('has server.user:', alphaconf.get('server.user', bool, default=False))
 
 if __name__ == '__main__':
-    alphaconf.run(main)
+    alphaconf.cli.run(main)
 ```
 
 Invoking:
@@ -44,7 +43,7 @@ Invoking:
 python myapp.py server.url=http://github.com
 ```
 
-During an interactive session, you can set the application in the current
+During an *interactive session*, you can set the application in the current
 context.
 ```python
 # import other modules
@@ -64,29 +63,29 @@ Then configuration is built from:
 
 - default configurations defined using (`alphaconf.setup_configuration`)
 - `application` key is generated
-- PYTHON_ALPHACONF may contain a path to a configuration file
+- `PYTHON_ALPHACONF` environment variable may contain a path to load
 - configuration files from configuration directories (using application name)
 - environment variables based on key prefixes,
-  except "BASE" and "PYTHON";
+  except "BASE" and "PYTHON"; \
   if you have a configuration key "abc", all environment variables starting
-  with "ABC_" will be loaded where keys are converted to lower case and "_"
-  to ".": "ABC_HELLO=a" would set "abc.hello=a"
+  with "ABC_" will be loaded, for example "ABC_HELLO=a" would set "abc.hello=a"
 - key-values from the program arguments
 
 Finally, the configuration is fully resolved and logging is configured.
 
 ## Configuration templates and resolvers
 
-Omegaconf's resolvers may be used as configuration values.
-For example, `${oc.env:USER,me}` would resolve to the environment variable
-USER with a default value "me".
-Similarly, `${oc.select:path}` will resolve to another configuration value.
+Configuration values are resolved by [OmegaConf].
+Some of the resolvers (standard and custom):
+- `${oc.env:USER,me}`: resolve the environment variable USER
+  with a default value "me"
+- `${oc.select:config_path}`: resolve to another configuration value
+- `${read_text:file_path}`: read text contents of a file as `str`
+- `${read_bytes:file_path}`: read contents of a file as `bytes`
+- `${read_strip:file_path}`: read text contents of a file as strip spaces
 
-Additional resolvers are added to read file contents.
-These are the same as type casts: read_text, read_strip, read_bytes.
-
-The select is used to build multiple templates for configurations by providing
-base configurations.
+The *oc.select* is used to build multiple templates for configurations
+by providing base configurations.
 An argument `--select key=template` is a shortcut for
 `key=${oc.select:base.key.template}`.
 So, `logging: ${oc.select:base.logging.default}` resolves to the configuration
@@ -97,18 +96,54 @@ dict defined in base.logging.default and you can select it using
 
 ### Typed-configuration
 
-You can use *omegaconf* with *dataclasses* to specify which values are
-enforced in the configuration.
-Alternatively, the *get* method can receive a data type or a function
-which will parse the value.
-By default, bool, str, Path, DateTime, etc. are supported.
+You can use [OmegaConf] with [pydantic] to *get* typed values.
+```python
+class MyConf(pydantic.BaseModel):
+    value: int = 0
+
+    def build(self):
+        # use as a factory pattern to create more complex objects
+        # for example, a connection to the database
+        return self.value * 2
+
+# setup the configuration
+alphaconf.setup_configuration(MyConf, prefix='a')
+# read the value
+alphaconf.get('a', MyConf)
+v = alphaconf.get(MyConf)  # because it's registered as a type
+```
 
 ### Secrets
 
 When showing the configuration, by default configuration keys which are
 secrets, keys or passwords will be masked.
-Another good practice is to have a file containing the password which
-you can retrieve using `alphaconf.get('secret_file', 'read_strip')`.
+You can read values or passwords from files, by using the template
+`${read_strip:/path_to_file}`
+or, more securely, read the file in the code
+`alphaconf.get('secret_file', Path).read_text().strip()`.
+
+### Inject parameters
+
+We can inject default values to functions from the configuration.
+Either one by one, where we can map a factory function or a configuration key.
+Or inject all automatically base on the parameter name.
+
+```python
+from alphaconf.inject import inject, inject_auto
+
+@inject('name', 'application.name')
+@inject_auto(ignore={'name'})
+def main(name: str, example=None):
+    pass
+
+# similar to
+def main(name: str=None, example=None):
+    if name is None:
+        name = alphaconf.get('application.name', str)
+    if example is None:
+        example = alphaconf.get('example', default=example)
+    ...
+```
 
 ### Invoke integration
 
@@ -123,7 +158,10 @@ alphaconf.setup_configuration({'backup': 'all'})
 alphaconf.invoke.run(__name__, ns)
 ```
 
-### Interactive and manual usage
+## Way to 1.0
+- Run a specific function `alphaconf my.module.main`:
+  find functions and inject args
+- Install completions for bash `alphaconf --install-autocompletion`
 
-Use `alphaconf.interactive.mount()` or load manually create an
-`alphaconf.Application`, configure it and set it.
+[OmegaConf]: https://omegaconf.readthedocs.io/
+[pydantic]: https://docs.pydantic.dev/latest/

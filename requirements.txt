@@ -10,6 +10,7 @@ types-toml
 # Libraries
 omegaconf>=2
 colorama
+pydantic>=2
 python-dotenv
 invoke
 toml

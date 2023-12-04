@@ -8,13 +8,15 @@ import alphaconf.logging_util
 
 @pytest.fixture(scope='function')
 def application():
-    return alphaconf.Application(name='test_logging')
+    app = alphaconf.Application(name='test_logging')
+    app.setup_configuration(load_dotenv=False)
+    return app
 
 
 @pytest.fixture(scope='function')
 def log(application):
-    application.setup_configuration(arguments=False, setup_logging=True)
     alphaconf.set_application(application)
+    alphaconf.logging_util.setup_application_logging(application.configuration.get("logging"))
     return logging.getLogger()
 
 

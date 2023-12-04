@@ -15,6 +15,9 @@ fix_all() {
 	black .
 	ruff check --fix-only .
 }
+format() {
+	black .
+}
 
 # Commands
 case "${1:-run}" in
@@ -24,6 +27,9 @@ case "${1:-run}" in
 		;;
 	fix)
 		fix_all
+		;;
+	format)
+		format
 		;;
 	install)
 		echo "Installing pre-commit"
@@ -36,5 +42,5 @@ case "${1:-run}" in
 		;;
 	*)
 		echo "Invalid argument: $*"
-		echo "Supported options: lint, install, uninstall"
+		echo "Supported options: lint, format, install, uninstall"
 esac
