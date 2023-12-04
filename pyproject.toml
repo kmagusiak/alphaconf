@@ -23,13 +23,13 @@ classifiers = [
 ]
 dependencies = [
     "omegaconf>=2",
-    "pydantic>=2",
 ]
 
 [project.optional-dependencies]
 color = ["colorama"]
 dotenv = ["python-dotenv"]
 invoke = ["invoke"]
+pydantic = ["pydantic>=2"]
 toml = ["toml"]
 
 [project.urls]

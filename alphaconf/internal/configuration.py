@@ -1,6 +1,5 @@
 import copy
 import os
-import typing
 import warnings
 from enum import Enum
 from typing import (
@@ -19,7 +18,7 @@ from typing import (
 
 from omegaconf import Container, DictConfig, OmegaConf
 
-from .type_resolvers import convert_to_type, pydantic
+from .type_resolvers import convert_to_type, pydantic, type_from_annotation
 
 T = TypeVar('T')
 
@@ -92,14 +91,14 @@ class Configuration:
         )
         if value is raise_on_missing:
             if default is raise_on_missing:
-                raise ValueError(f"No value for: {key}")
+                raise KeyError(f"No value for: {key}")
             return default
         # check the returned type and convert when necessary
         if type is not None and isinstance(value, type):
             return value
         if isinstance(value, Container):
             value = OmegaConf.to_object(value)
-        if type is not None and default is not None:
+        if type is not None and value is not default:
             value = convert_to_type(value, type)
         return value
 
@@ -110,12 +109,12 @@ class Configuration:
         key_str = self.__type_path.get(key)
         if key_str is None:
             if default is raise_on_missing:
-                raise ValueError(f"Key not found for type {key}")
+                raise KeyError(f"Key not found for type {key}")
             return default
         try:
             value = self.get(key_str, key)
             self.__type_value = value
-        except ValueError:
+        except KeyError:
             if default is raise_on_missing:
                 raise
             value = default
@@ -130,7 +129,7 @@ class Configuration:
         conf: Union[DictConfig, dict, Any],
         helpers: Dict[str, str] = {},
         *,
-        path: str = "",
+        prefix: str = "",
     ):
         """Add a default configuration
 
@@ -146,10 +145,10 @@ class Configuration:
             conf_type = None
         if conf_type:
             # if already registered, set path to None
-            self.__type_path[conf_type] = None if conf_type in self.__type_path else path
+            self.__type_path[conf_type] = None if conf_type in self.__type_path else prefix
             self.__type_value.pop(conf_type, None)
-        if path and not path.endswith('.'):
-            path += "."
+        if prefix and not prefix.endswith('.'):
+            prefix += "."
         if isinstance(conf, str):
             warnings.warn("provide a dict directly", DeprecationWarning)
             created_config = OmegaConf.create(conf)
@@ -157,16 +156,16 @@ class Configuration:
                 raise ValueError("The config is not a dict")
             conf = created_config
         if isinstance(conf, DictConfig):
-            config = self.__prepare_dictconfig(conf, path=path)
+            config = self.__prepare_dictconfig(conf, path=prefix)
         else:
-            created_config = self.__prepare_config(conf, path=path)
+            created_config = self.__prepare_config(conf, path=prefix)
             if not isinstance(created_config, DictConfig):
-                raise ValueError("Failed to convert to a DictConfig")
+                raise TypeError("Failed to convert to a DictConfig")
             config = created_config
-        # add path and merge
-        if path:
-            config = self.__add_path(config, path.rstrip("."))
-            helpers = {path + k: v for k, v in helpers.items()}
+        # add prefix and merge
+        if prefix:
+            config = self.__add_prefix(config, prefix.rstrip("."))
+            helpers = {prefix + k: v for k, v in helpers.items()}
         self._merge([config])
         # helpers
         self.helpers.update(**helpers)
@@ -221,12 +220,12 @@ class Configuration:
         sub_configs = []
         for k, v in obj.items_ex(resolve=False):
             if not isinstance(k, str):
-                raise ValueError("Expecting only str instances in dict")
+                raise TypeError("Expecting only str instances in dict")
             if recursive:
                 v = self.__prepare_config(v, path + k + ".")
             if '.' in k:
                 obj.pop(k)
-                sub_configs.append(self.__add_path(v, k))
+                sub_configs.append(self.__add_prefix(v, k))
         if sub_configs:
             obj = cast(DictConfig, OmegaConf.unsafe_merge(obj, *sub_configs))
         return obj
@@ -252,9 +251,6 @@ class Configuration:
             # pydantic instance, prepare helpers
             self.__prepare_pydantic(type(obj), path)
             return obj.model_dump(mode="json")
-        # parse typing recursively for documentation
-        for t in typing.get_args(obj):
-            self.__prepare_pydantic(t, path)
         # check if not a type
         if not isinstance(obj, type):
             return obj
@@ -279,13 +275,14 @@ class Configuration:
                     from alphaconf import SECRET_MASKS
 
                     SECRET_MASKS.append(lambda s: s == path)
-                elif check_type and field.annotation:
-                    self.__prepare_pydantic(field.annotation, path + k + ".")
+                elif check_type:
+                    for ftype in type_from_annotation(field.annotation):
+                        self.__prepare_pydantic(ftype, path + k + ".")
             return defaults
         return None
 
     @staticmethod
-    def __add_path(config: Any, path: str) -> DictConfig:
-        for part in reversed(path.split(".")):
+    def __add_prefix(config: Any, prefix: str) -> DictConfig:
+        for part in reversed(prefix.split(".")):
             config = OmegaConf.create({part: config})
         return config

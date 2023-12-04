@@ -1,4 +1,5 @@
 import datetime
+import typing
 from pathlib import Path
 
 from omegaconf import OmegaConf
@@ -16,11 +17,7 @@ By the way, you could register new resolvers in OmegaConf.
 """
 
 
-def read_text(value):
-    return Path(value).expanduser().read_text()
-
-
-def parse_bool(value) -> bool:
+def _parse_bool(value) -> bool:
     if isinstance(value, str):
         value = value.strip().lower()
         if value in ('no', 'false', 'n', 'f', 'off', 'none', 'null', 'undefined', '0'):
@@ -29,14 +26,14 @@ def parse_bool(value) -> bool:
 
 
 TYPE_CONVERTER = {
-    bool: parse_bool,
+    bool: _parse_bool,
     datetime.datetime: datetime.datetime.fromisoformat,
     datetime.date: lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(),
     datetime.time: datetime.time.fromisoformat,
-    Path: lambda s: Path(s).expanduser(),
+    Path: lambda s: Path(str(s)).expanduser(),
     str: lambda v: str(v),
-    'read_text': read_text,
-    'read_strip': lambda s: read_text(s).strip(),
+    'read_text': lambda s: Path(s).expanduser().read_text(),
+    'read_strip': lambda s: Path(s).expanduser().read_text().strip(),
     'read_bytes': lambda s: Path(s).expanduser().read_bytes(),
 }
 
@@ -65,3 +62,12 @@ def convert_to_type(value, type):
     if pydantic:
         return pydantic.TypeAdapter(type).validate_python(value)
     return type(value)
+
+
+def type_from_annotation(annotation) -> typing.Generator[type, None, None]:
+    """Given an annotation (optional), figure out the types"""
+    if isinstance(annotation, type) and annotation is not type(None):
+        yield annotation
+    else:
+        for t in typing.get_args(annotation):
+            yield from type_from_annotation(t)

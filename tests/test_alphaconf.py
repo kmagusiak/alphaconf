@@ -90,7 +90,7 @@ def test_setup_configuration():
 
 
 def test_setup_configuration_invalid():
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         # invalid configuration (must be non-empty)
         alphaconf.setup_configuration(None)
 
@@ -132,8 +132,8 @@ def test_app_environ(application):
     )
     application.setup_configuration(load_dotenv=False, env_prefixes=True)
     config = application.configuration
-    with pytest.raises(ValueError):
-        # XXX should not be loaded
+    with pytest.raises(KeyError):
+        # prefix with underscore only should be loaded
         config.get('xxx')
     assert config.get('testmyenv.x') == 'overwrite'
     assert config.get('testmyenv.y') == 'new'
