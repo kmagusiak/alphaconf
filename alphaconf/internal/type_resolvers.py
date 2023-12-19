@@ -66,7 +66,7 @@ def convert_to_type(value, type):
 
 def type_from_annotation(annotation) -> typing.Generator[type, None, None]:
     """Given an annotation (optional), figure out the types"""
-    if isinstance(annotation, type) and annotation is not type(None):
+    if isinstance(annotation, type) and issubclass(annotation, type(None)):
         yield annotation
     else:
         for t in typing.get_args(annotation):
