@@ -158,6 +158,9 @@ alphaconf.setup_configuration({'backup': 'all'})
 alphaconf.invoke.run(__name__, ns)
 ```
 
+## Plumbum
+Replace `invoke` with alphaconf and plumbum.
+
 ## Way to 1.0
 - Run a specific function `alphaconf my.module.main`:
   find functions and inject args

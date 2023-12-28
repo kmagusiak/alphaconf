@@ -26,6 +26,10 @@ alphaconf.setup_configuration(
 )
 
 
+app = alphaconf.cli.CliApplication(name='example', version='0.1')
+
+
+@app.command()
 def main():
     """Simple demo of alphaconf"""
 
@@ -58,9 +62,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # running with explicit parameters
-    alphaconf.cli.run(
-        main,
-        name='example',
-        version='0.1',
-    )
+    app.run()

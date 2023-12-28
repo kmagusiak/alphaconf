@@ -1,5 +1,5 @@
 import sys
-from typing import Callable, Optional, Sequence, TypeVar, Union
+from typing import Any, Callable, Optional, Sequence, TypeVar, Union
 
 from omegaconf import MissingMandatoryValue, OmegaConf
 
@@ -16,7 +16,31 @@ class CommandAction(Action):
 
 
 class CliApplication(Application):
-    pass
+    commands: dict[str, Callable[[], Any]]
+
+    def __init__(self, *, name: str | None = None, **properties) -> None:
+        super().__init__(name=name, **properties)
+        self.commands = {}
+
+    def command(self, name=None, inject=False):
+        def register_command(func):
+            reg_name = name or func.__name__
+            if inject:
+                from .inject import inject_auto
+
+                func = inject_auto()(func)
+            self.commands[reg_name] = func
+
+        return register_command
+
+    def _run(self):
+        # TODO
+        for cmd in self.commands.values():
+            return cmd()
+        return None
+
+    def run(self, **config):
+        return run(self._run, **config, app=self)
 
 
 def run(
