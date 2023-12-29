@@ -8,12 +8,6 @@ easily.
 The configuration is based on [OmegaConf].
 Optionally, loading from toml or using [pydantic] is possible.
 
-To run multiple related tasks, there is an integration with
-[invoke](https://www.pyinvoke.org).
-If you need something more complex, like running multiple instances of the
-script, take a look at [hydra-core](https://hydra.cc) or use another script
-to launch multiple instances.
-
 ## Demo and application
 
 To run an application, you need...
@@ -110,7 +104,7 @@ class MyConf(pydantic.BaseModel):
 alphaconf.setup_configuration(MyConf, prefix='a')
 # read the value
 alphaconf.get('a', MyConf)
-v = alphaconf.get(MyConf)  # because it's registered as a type
+v = alphaconf.get(MyConf)  # shortcut, because it's registered as a type
 ```
 
 ### Secrets
@@ -147,7 +141,13 @@ def main(name: str=None, example=None):
 
 ### Invoke integration
 
-Just add the lines below to parameterize invoke.
+To run multiple related tasks, there is an integration with
+[invoke](https://www.pyinvoke.org).
+If you need something more complex, like running multiple instances of the
+script, take a look at [hydra-core](https://hydra.cc) or use another script
+to launch multiple instances.
+
+Just add the lines below to parameterize `invoke`.
 Note that the argument parsing to overwrite configuration will work only
 when the script is directly called.
 
@@ -162,6 +162,9 @@ alphaconf.invoke.run(__name__, ns)
 Replace `invoke` with alphaconf and plumbum.
 
 ## Way to 1.0
+- Make argument parsing separate from the core
+- Compare `plumbum` and `invoke` for building scripts
+- Secret handling and encryption
 - Run a specific function `alphaconf my.module.main`:
   find functions and inject args
 - Install completions for bash `alphaconf --install-autocompletion`
