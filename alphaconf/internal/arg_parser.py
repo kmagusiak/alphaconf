@@ -119,7 +119,7 @@ class ConfigurationSelectAction(ConfigurationAction):
     def handle(self, result, value):
         key, value = _split(value)
         value = value or 'default'
-        arg = "{key}=${{oc.select:base.{key}.{value}}}".format(key=key, value=value)
+        arg = f"{key}=${{oc.select:base.{key}.{value}}}"
         return super().handle(result, arg)
 
 

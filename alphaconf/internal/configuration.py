@@ -205,7 +205,7 @@ class Configuration:
             if name:
                 name += "_"
             name += part
-            if name in conf.keys():
+            if name in conf:
                 sub_conf = conf.get(name)
                 if next_offset == len(parts):
                     return name

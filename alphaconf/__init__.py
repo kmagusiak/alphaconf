@@ -2,7 +2,7 @@ import re
 import warnings
 from typing import Callable, MutableSequence, Optional, Sequence, TypeVar, Union
 
-from .frozendict import frozendict  # noqa: F401 (expose)
+from .frozendict import frozendict
 from .internal.application import Application
 from .internal.configuration import Configuration
 
