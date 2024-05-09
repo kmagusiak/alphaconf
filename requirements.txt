@@ -1,9 +1,9 @@
 # Build tools
 setuptools
 setuptools_scm
-black
-flake8
-isort
+black>=22
+flake8>=7
+isort>=5
 mypy
 pytest
 types-toml

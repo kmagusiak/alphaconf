@@ -5,7 +5,7 @@
 # E123,E133: ignored by default by pep8, so we ignore them here
 # E203: space before comma, not pep8 compliant
 # E241,E242: spacing after a comma - not used
-# F401: module imported but unused
+# E701,E704: multiple statements on one line - handled by black
 # F812: list comprehension redefines name
 # W503: line break before operator - ignored as W504 is in pep8
 # * Documentation (https://pep257.readthedocs.io/en/latest/error_codes.html)
@@ -15,7 +15,7 @@
 # D205: 1 blank line required between summary line and description
 # D210: no whitespaces allowed surrounding docstring text - not used
 # D400: first line should end with a period
-ignore = C901,E123,E133,E203,F812,W503,D102,D205,D400
+ignore = C901,E123,E133,E203,E701,E704,F812,W503,D102,D205,D400
 max-line-length = 100
 exclude = .venv,venv,.git
 max-complexity = 10

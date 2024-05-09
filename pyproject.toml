@@ -12,7 +12,7 @@ dynamic = ["version"]
 description = "Write simple scripts leveraging omegaconf"
 readme = "README.md"
 keywords = ["configuration", "omegaconf", "pydantic", "script"]
-license = {text = "BSD License"}
+license = {file = "LICENSE"}
 requires-python = ">=3.9"
 classifiers = [
     # https://pypi.org/pypi?%3Aaction=list_classifiers

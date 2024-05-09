@@ -52,8 +52,8 @@ def getter(
         ktype = next(type_from_annotation(ptype), None)
     if param is not None and param.default is not param.empty:
         xparam = param
-        return (
-            lambda: xparam.default
+        return lambda: (
+            xparam.default
             if (value := alphaconf.get(key, ktype, default=None)) is None
             and xparam.default is not xparam.empty
             else value
