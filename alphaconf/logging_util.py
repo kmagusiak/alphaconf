@@ -2,8 +2,9 @@ import collections
 import json
 import logging
 import traceback
+import warnings
 from logging import Formatter, LogRecord
-from typing import Any, Callable, Union
+from typing import Any, Callable, Optional
 
 try:
     import colorama
@@ -37,7 +38,7 @@ if colorama:
 _LOG_RECORD_FIELDS = set(logging.makeLogRecord({}).__dict__.keys())
 
 
-def setup_application_logging(configuration: Union[dict, None]) -> None:
+def setup_application_logging(configuration: Optional[dict] = None) -> None:
     """Setup logging
 
     Set the time to GMT, log key 'logging' from configuration or if none, base logging.
@@ -57,6 +58,11 @@ def setup_application_logging(configuration: Union[dict, None]) -> None:
         output.setFormatter(ColorFormatter())
         log.addHandler(output)
         log.setLevel(logging.INFO)
+
+
+def show_warnings():
+    """Configure warnings"""
+    warnings.simplefilter('default', category=DeprecationWarning)
 
 
 def set_gmt(enable: bool = True):
