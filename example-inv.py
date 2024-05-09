@@ -2,7 +2,7 @@ import logging
 
 from invoke import task
 
-import alphaconf.invoke
+import alphaconf
 
 
 @task
@@ -16,5 +16,4 @@ def doit(ctx, param=None):
 
 # add some default configuration and run/configure invoke's namespace
 alphaconf.setup_configuration({'backup': 'all'})
-# TODO just setup logging and load variables into ns?
-alphaconf.invoke.run(__name__, globals())
+alphaconf.initialize()

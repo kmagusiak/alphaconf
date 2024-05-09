@@ -28,15 +28,10 @@ dependencies = [
 [project.optional-dependencies]
 color = ["colorama"]
 dotenv = ["python-dotenv"]
-invoke = ["invoke"]
 pydantic = ["pydantic>=2"]
-toml = ["toml"]
 
 [project.urls]
 Homepage = "https://github.com/kmagusiak/alphaconf"
-
-[project.scripts]
-alphaconf = "alphaconf.cli:run"
 
 [[project.authors]]
 name = "Krzysztof Magusiak"

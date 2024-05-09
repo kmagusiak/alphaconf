@@ -1,10 +1,10 @@
+import logging
 import re
-import warnings
-from typing import Callable, MutableSequence, Optional, Sequence, TypeVar, Union
+from typing import Callable, MutableSequence, Optional, TypeVar
 
 from .frozendict import frozendict  # noqa: F401 (expose)
-from .internal.application import Application
 from .internal.configuration import Configuration
+from .internal.load_file import read_configuration_file
 
 __doc__ = """AlphaConf
 
@@ -45,49 +45,53 @@ _global_configuration: Configuration = Configuration()
 """The global configuration"""
 
 setup_configuration = _global_configuration.setup_configuration
-
-_application: Optional[Application] = None
 get = _global_configuration.get
+__initialized = False
 
 
-def set_application(app: Application) -> None:
-    """Setup the application globally
+def load_configuration_file(path: str):
+    """Read a configuration file and add it to the context configuration"""
+    config = read_configuration_file(path)
+    logging.debug('Loading configuration from path: %s', path)
+    setup_configuration(config)
 
-    This loads the configuration and initializes the application.
-    The function may raise ExitApplication.
-    """
-    global _application, get
-    if _application is app:
+
+def select_configuration(name, key):
+    pass  # TODO
+
+
+def initialize(
+    app_name: str = '',
+    setup_logging: bool = True,
+    load_dotenv: Optional[bool] = None,
+    force: bool = False,
+):
+    """Initialize the application and setup configuration"""
+    global __initialized
+    if __initialized and not force:
+        logging.info("The application is already initialized", stack_info=True)
         return
-    if _application is not None:
-        _application.log.info("Another application will be loaded")
-    _application = app
-    get = app.configuration.get
+    __initialized = True
 
+    # load from dotenv
+    from .internal.dotenv_vars import try_dotenv
 
-def run(
-    main: Callable[[], T],
-    arguments: Union[bool, Sequence[str]] = True,
-    *,
-    should_exit: bool = True,
-    app: Optional[Application] = None,
-    **config,
-) -> Optional[T]:
-    """Run this application (deprecated)
+    try_dotenv(load_dotenv=load_dotenv)
 
-    If an application is not given, a new one will be created with configuration properties
-    taken from the config. Also, by default logging is set up.
+    # load the application
+    from .internal import application as app
 
-    :param main: The main function to call
-    :param arguments: List of arguments (default: True to read sys.argv)
-    :param should_exit: Whether an exception should sys.exit (default: True)
-    :param config: Arguments passed to Application.__init__() and Application.setup_configuration()
-    :return: The result of main
-    """
-    warnings.warn("use alphaconf.cli.run directly", DeprecationWarning)
-    from .cli import run
+    configurations = app.get_configurations(
+        app_name=app_name, default_configuration=_global_configuration.c
+    )
+    _global_configuration._merge(configurations)
 
-    return run(main, arguments, should_exit=should_exit, app=app, **config)
+    # setup logging
+    if setup_logging:
+        from . import get, logging_util
+
+        logging_util.setup_application_logging(get('logging', default=None))
+    logging.debug('Application initialized')
 
 
 #######################################
@@ -156,4 +160,4 @@ def __alpha_configuration():
 
 # Initialize configuration
 __alpha_configuration()
-__all__ = ["get", "setup_configuration", "set_application", "Application", "frozendict"]
+__all__ = ["get", "setup_configuration", "frozendict"]

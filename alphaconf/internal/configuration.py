@@ -1,5 +1,4 @@
 import copy
-import os
 import warnings
 from enum import Enum
 from typing import (
@@ -75,7 +74,7 @@ class Configuration:
         default: Union[T, RaiseOnMissingType] = raise_on_missing,
     ) -> T: ...
 
-    def get(self, key: Union[str, Type], type=None, *, default=raise_on_missing):
+    def get(self, key: Union[str, Type], type=None, *, default: Any = raise_on_missing) -> Any:
         """Get a configuation value and cast to the correct type"""
         if isinstance(key, _cla_type):
             return self.__get_type(key, default=default)
@@ -171,29 +170,8 @@ class Configuration:
         """Assign a helper description"""
         self.helpers[key] = description
 
-    def from_environ(self, prefixes: Iterable[str]) -> DictConfig:
-        """Load environment variables into a dict configuration"""
-        from yaml.error import YAMLError  # type: ignore
-
-        trans = str.maketrans('_', '.', '"\\=')
-        prefixes = tuple(prefixes)
-        dotlist = [
-            (name.lower().translate(trans).strip('.'), value)
-            for name, value in os.environ.items()
-            if name.startswith(prefixes)
-        ]
-        conf = OmegaConf.create({})
-        for name, value in dotlist:
-            name = Configuration._find_name(name.split('.'), self.c)
-            try:
-                conf.merge_with_dotlist([f"{name}={value}"])
-            except YAMLError:
-                # if cannot load the value as a dotlist, just add the string
-                OmegaConf.update(conf, name, value)
-        return conf
-
     @staticmethod
-    def _find_name(parts: List[str], conf: DictConfig) -> str:
+    def _find_name(parts: List[str], conf: DictConfig) -> str:  # XXX move to application
         """Find a name from parts, by trying joining with '.' (default) or '_'"""
         if len(parts) < 2:
             return "".join(parts)

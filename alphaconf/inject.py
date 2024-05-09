@@ -76,7 +76,7 @@ def inject(name: str, factory: Union[None, str, Callable[[], Any]]):
     return do_inject
 
 
-def inject_auto(*, prefix: str = "", ignore: set = set()):
+def inject_auto(*, prefix: str = "", ignore: set[str] = set()):
     """Inject automatically all paramters"""
     if prefix and not prefix.endswith("."):
         prefix += "."

@@ -1,7 +1,7 @@
 import pytest
 from omegaconf import OmegaConf
 
-import alphaconf.internal.arg_parser as ap
+import alphaconf.internal.old_arg_parser as ap
 from alphaconf import Application
 
 

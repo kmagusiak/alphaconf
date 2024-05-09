@@ -4,20 +4,19 @@ import logging
 import plumbum
 
 import alphaconf.cli
+from alphaconf.inject import inject_auto
 
 alphaconf.setup_configuration({"cmd": "ls"})
 
-app = alphaconf.cli.CliApplication()
 
-
-@app.command()
-def main():
+@inject_auto()
+def main(cmd: str):
     """Simple demo of alphaconf with plumbum"""
     log = logging.getLogger(__name__)
-    cmd = plumbum.local[alphaconf.get("cmd")]
+    cmd = plumbum.local[cmd]
     log.info("Running a command %s", cmd)
     return cmd.run_fg()
 
 
 if __name__ == '__main__':
-    app.run()
+    alphaconf.cli.run(main)

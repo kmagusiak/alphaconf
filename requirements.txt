@@ -13,5 +13,8 @@ omegaconf>=2
 colorama
 pydantic>=2
 python-dotenv
-invoke
 toml
+
+# Other tools
+invoke
+plumbum

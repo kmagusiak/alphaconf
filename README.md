@@ -41,9 +41,9 @@ During an *interactive session*, you can set the application in the current
 context.
 ```python
 # import other modules
-import alphaconf.interactive
-alphaconf.interactive.mount()
-alphaconf.interactive.load_configuration_file('path')
+import alphaconf
+alphaconf.load_configuration_file('path')
+alphaconf.initialize()
 ```
 
 Check the [DEMO](./demo.ipynb) for more examples.
@@ -162,12 +162,8 @@ alphaconf.invoke.run(__name__, ns)
 Replace `invoke` with alphaconf and plumbum.
 
 ## Way to 1.0
-- Make argument parsing separate from the core
-- Compare `plumbum` and `invoke` for building scripts
+- replace toml with tomllib (standard since 3.11)
 - Secret handling and encryption
-- Run a specific function `alphaconf my.module.main`:
-  find functions and inject args
-- Install completions for bash `alphaconf --install-autocompletion`
 
 [OmegaConf]: https://omegaconf.readthedocs.io/
 [pydantic]: https://docs.pydantic.dev/latest/

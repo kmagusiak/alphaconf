@@ -7,19 +7,135 @@ from typing import Callable, Iterable, List, MutableMapping, Optional, Tuple, Un
 
 from omegaconf import DictConfig, OmegaConf
 
-from . import arg_parser, load_file
+from . import load_file
 from .configuration import Configuration
 
 
-class Application:
+def get_current_application_name() -> str:
+    """Find the default name from sys.argv"""
+    name = os.path.basename(sys.argv[0])
+    if name.endswith('.py'):
+        name = name[:-3]
+    if name == '__main__':
+        # executing a module using python -m
+        name = os.path.basename(os.path.dirname(sys.argv[0]))
+    return name
+
+
+def _application_configuration(app_name: str = '', version: str = '') -> DictConfig:
+    """Get the application configuration key"""
+    return OmegaConf.create(
+        {
+            'application': {
+                'name': app_name or get_current_application_name(),
+                'version': version,
+                'uuid': str(uuid.uuid4()),
+            },
+        }
+    )
+
+
+def possible_configuration_paths(app_name: str = '') -> Iterable[str]:
+    """List of paths where to find configuration files"""
+    name = app_name or get_current_application_name()
+    is_windows = sys.platform.startswith('win')
+    for path in [
+        '$APPDATA/{}' if is_windows else '/etc/{}',
+        '$LOCALAPPDATA/{}' if is_windows else '',
+        '$HOME/.{}',
+        '$HOME/.config/{}',
+        '$PWD/{}',
+    ]:
+        path = path and os.path.expandvars(path)
+        if path and '$' not in path:
+            for ext in load_file.SUPPORTED_EXTENSIONS:
+                yield path.format(f"{name}.{ext}")
+
+
+def get_configurations(
+    default_configuration: DictConfig,  # TODO use this or get the global config
+    app_name: str = '',
+    configuration_paths: Iterable[str] = [],
+    env_prefixes: Union[bool, Iterable[str]] = True,
+) -> Iterable[DictConfig]:
+    """List of all configurations that can be loaded automatically
+
+    - Global configuration
+    - The app configuration
+    - Read file defined in PYTHON_ALPHACONF
+    - Reads existing files from possible configuration paths
+    - Reads environment variables based on given prefixes
+
+    :param env_prefixes: Prefixes of environment variables to load
+    :return: OmegaConf configurations (to be merged)
+    """
+    log = logging.getLogger()
+    # App
+    yield default_configuration
+    if app_name:
+        yield _application_configuration(app_name)
+    log.debug('Loading default and app configurations')
+    # Read files
+    env_configuration_path = os.environ.get('PYTHON_ALPHACONF') or ''
+    for path in itertools.chain(
+        [env_configuration_path],
+        possible_configuration_paths(app_name=app_name) if app_name else [],
+        configuration_paths,
+    ):
+        if not os.path.isfile(path):
+            continue
+        log.debug('Load configuration from %s', path)
+        yield load_file.read_configuration_file(path)
+    # Environment
+    prefixes: Optional[Tuple[str, ...]]
+    if env_prefixes is True:
+        log.debug('Detecting accepted env prefixes')
+        default_keys = {str(k) for k in default_configuration}
+        prefixes = tuple(
+            k.upper() + '_'
+            for k in default_keys
+            if k not in ('base', 'python') and not k.startswith('_')
+        )
+    elif isinstance(env_prefixes, Iterable):
+        prefixes = tuple(env_prefixes)
+    else:
+        prefixes = None
+    if prefixes:
+        log.debug('Loading env configuration from prefixes %s', prefixes)
+        yield from_environ(default_configuration, prefixes)
+
+
+def from_environ(c: DictConfig, prefixes: Iterable[str]) -> DictConfig:
+    """Load environment variables into a dict configuration"""
+    from yaml.error import YAMLError  # type: ignore
+
+    trans = str.maketrans('_', '.', '"\\=')
+    prefixes = tuple(prefixes)
+    dotlist = [
+        (name.lower().translate(trans).strip('.'), value)
+        for name, value in os.environ.items()
+        if name.startswith(prefixes)
+    ]
+    conf = OmegaConf.create({})
+    for name, value in dotlist:
+        name = Configuration._find_name(name.split('.'), c)
+        try:
+            conf.merge_with_dotlist([f"{name}={value}"])
+        except YAMLError:
+            # if cannot load the value as a dotlist, just add the string
+            OmegaConf.update(conf, name, value)
+    return conf
+
+
+class DeprecatedApplication:  # TODO remove
     """An application description"""
 
     log = logging.getLogger('alphaconf')
     __config: Optional[Configuration] = None
     __name: str
     properties: MutableMapping[str, str]
-    argument_parser: arg_parser.ArgumentParser
-    parsed: Optional[arg_parser.ParseResult] = None
+    # argument_parser: old_arg_parser.ArgumentParser
+    # parsed: Optional[old_arg_parser.ParseResult] = None
 
     def __init__(
         self,
@@ -40,11 +156,11 @@ class Application:
         self.properties = properties
         self.argument_parser = self._build_argument_parser()
 
-    def _build_argument_parser(self) -> arg_parser.ArgumentParser:
+    def _build_argument_parser(self):  # -> old_arg_parser.ArgumentParser:
         from .. import _global_configuration
 
-        p = arg_parser.ArgumentParser(_global_configuration.helpers)
-        arg_parser.configure_parser(p, app=self)
+        p = old_arg_parser.ArgumentParser(_global_configuration.helpers)
+        old_arg_parser.configure_parser(p, app=self)
         return p
 
     @staticmethod
@@ -190,7 +306,7 @@ class Application:
         if self.parsed.result:
             return self.parsed.result.run(self)
         if self.parsed.rest:
-            raise arg_parser.ArgumentError(f"Too many arguments {self.parsed.rest}")
+            raise old_arg_parser.ArgumentError(f"Too many arguments {self.parsed.rest}")
         return None
 
     def masked_configuration(

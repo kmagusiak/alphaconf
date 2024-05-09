@@ -1,46 +1,82 @@
 import sys
+import logging
+import argparse
 from typing import Any, Callable, Optional, Sequence, TypeVar, Union
 
 from omegaconf import MissingMandatoryValue, OmegaConf
 
-from . import set_application
-from .internal.application import Application
-from .internal.arg_parser import Action, ArgumentError, ExitApplication
+from . import initialize, setup_configuration
+from .internal.load_file import read_configuration_file
 
 T = TypeVar('T')
-__all__ = ["run"]
+__all__ = ["run", "Application"]
+log = logging.getLogger(__name__)
 
 
-class CommandAction(Action):
-    pass  # TODO just read a function name, parse rest with this one
+class ConfigAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(option_string, values)
+        if option_string:
+            config = read_configuration_file(values)
+        else:
+            config = OmegaConf.create(values[0])
+        setup_configuration(config)
 
 
-class CliApplication(Application):
-    commands: dict[str, Callable[[], Any]]
+class SelectConfigAction(ConfigAction):
+    def __call__(self, parser, namespace, values, option_string=None):
+        key, value = values.split('=')  # XXX _split(value)
+        value = value or 'default'
+        arg = "{key}=${{oc.select:base.{key}.{value}}}".format(key=key, value=value)
+        return super().__call__(parser, namespace, [arg], option_string)
 
-    def __init__(self, *, name: str | None = None, **properties) -> None:
-        super().__init__(name=name, **properties)
-        self.commands = {}
 
-    def command(self, name=None, inject=False):
-        def register_command(func):
-            reg_name = name or func.__name__
-            if inject:
-                from .inject import inject_auto
+class ShowConfigurationAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        from . import _global_configuration
 
-                func = inject_auto()(func)
-            self.commands[reg_name] = func
+        config = _global_configuration
+        print(config.c)
+        parser.exit()
 
-        return register_command
 
-    def _run(self):
-        # TODO
-        for cmd in self.commands.values():
-            return cmd()
-        return None
+def parser_create(method, add_arguments=True, **args):
+    from .internal import application
 
-    def run(self, **config):
-        return run(self._run, **config, app=self)
+    args.setdefault('prog', args.pop('name', None) or application.get_current_application_name())
+    if method:
+        args.setdefault('description', method.__doc__)
+    args.setdefault('epilog', 'powered by alphaconf')
+    parser = argparse.ArgumentParser(**args)
+    if add_arguments:
+        parser_add_arguments(parser)
+    return parser
+
+
+def parser_add_arguments(parser: argparse.ArgumentParser):
+    parser.add_argument(
+        '--config',
+        '--config-file',
+        '-f',
+        action=ConfigAction,
+        metavar="path",
+        help="load a configuration file",
+    )
+    parser.add_argument(
+        '--select',
+        action=SelectConfigAction,
+        metavar="key=base_template",
+        help="select a configuration template",
+    )
+    parser.add_argument(
+        '--configuration',
+        '-C',
+        nargs=0,
+        action=ShowConfigurationAction,
+        help="show the configuration",
+    )
+    # TODO does not support -x a=5 -y b=5
+    parser.add_argument('key=value', nargs='*', action=ConfigAction, help="add configuration")
 
 
 def run(
@@ -48,11 +84,10 @@ def run(
     arguments: Union[bool, Sequence[str]] = True,
     *,
     should_exit: bool = True,
-    app: Optional[Application] = None,
     setup_logging: bool = True,
     **config,
 ) -> Optional[T]:
-    """Run this application
+    """Run a function/application
 
     If an application is not given, a new one will be created with configuration properties
     taken from the config. Also, by default logging is set up.
@@ -63,45 +98,28 @@ def run(
     :param config: Arguments passed to Application.__init__() and Application.setup_configuration()
     :return: The result of main
     """
-    # Create the application if needed
-    if app is None:
-        properties = {
-            k: config.pop(k)
-            for k in ['name', 'version', 'description', 'short_description']
-            if k in config
-        }
-        # if we don't have a description, get it from the function's docs
-        if 'description' not in properties and main.__doc__:
-            description = main.__doc__.strip().split('\n', maxsplit=1)
-            if 'short_description' not in properties:
-                properties['short_description'] = description[0]
-            if len(description) > 1:
-                import textwrap
+    from . import get, _global_configuration
 
-                properties['description'] = description[0] + '\n' + textwrap.dedent(description[1])
-            else:
-                properties['description'] = properties['short_description']
-        app = Application(**properties)
-    log = app.log
-
-    # Setup the application
+    arg_parser = parser_create(main, **config, exit_on_error=should_exit)
     try:
+        initialize(app_name=arg_parser.prog, setup_logging=False, force=True)
         if arguments is True:
             arguments = sys.argv[1:]
         if not isinstance(arguments, list):
             arguments = []
-        app.setup_configuration(arguments=arguments, **config)
-        set_application(app)
-        configuration = app.configuration
+        args = arg_parser.parse_args(arguments)
+        # args = arg_parser.parse_intermixed_args(arguments)  # XXX NOT WHAT I WANT
+        print(args)  # TODO
         if setup_logging:
             from .logging_util import setup_application_logging
 
-            setup_application_logging(configuration.get('logging', default=None))
+            setup_application_logging(get('logging', default=None))
     except MissingMandatoryValue as e:
         log.error(e)
         if should_exit:
             sys.exit(99)
         raise
+    """
     except ArgumentError as e:
         log.error(e)
         if should_exit:
@@ -112,14 +130,15 @@ def run(
         if should_exit:
             sys.exit()
         return None
+    """
 
     # Run the application
-    if configuration.get('testing', bool, default=False):
-        log.info('Testing (%s: %s)', app.name, main.__qualname__)
+    if get('testing', bool, default=False):
+        log.info('Testing (%s: %s)', arg_parser.prog, main.__qualname__)
         return None
     try:
-        log.info('Start (%s: %s)', app.name, main.__qualname__)
-        for missing_key in OmegaConf.missing_keys(configuration.c):
+        log.info('Start (%s: %s)', arg_parser.prog, main.__qualname__)
+        for missing_key in OmegaConf.missing_keys(_global_configuration.c):
             log.warning('Missing configuration key: %s', missing_key)
         result = main()
         if result is None:
