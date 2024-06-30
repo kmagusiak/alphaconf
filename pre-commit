@@ -6,15 +6,17 @@ cd "$(dirname "$0")"
 [ -d .git ]
 
 pre_commit() {
-	flake8
+	ruff check .
 	black --check .
-	isort --check-only .
 	mypy .
 }
 
+fix_all() {
+	black .
+	ruff check --fix-only .
+}
 format() {
 	black .
-	isort .
 }
 
 # Commands
@@ -22,6 +24,9 @@ case "${1:-run}" in
 	run|lint)
 		pre_commit
 		echo "All good to commit"
+		;;
+	fix)
+		fix_all
 		;;
 	format)
 		format

@@ -44,12 +44,38 @@ skip-string-normalization = 1
 [tool.mypy]
 ignore_missing_imports = true
 
-[tool.isort]
-profile = "black"
-line_length = 100
-
 [tools.setuptools]
 packages = ["alphaconf"]
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# https://beta.ruff.rs/docs/rules/
+select = [
+    #"C9",  # mccabe
+    #"D",   # documentation
+    "E",
+    "F",
+    "W",
+    "I",    # isort
+    "N",    # naming
+    "UP",   # pyupdate
+    "C4",   # comprehensions
+    "EXE",
+    "SIM",
+    "RUF",
+]
+ignore = [
+    "D102",  # mission doc in public method, function
+    "D205",  # blank line required betweeen summary and description
+    "D400",  # first line should end with a period
+    "E731",  # don't assign lambda
+    "SIM108",  # simplify ITE by operator
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10

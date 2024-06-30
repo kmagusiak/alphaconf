@@ -1,8 +1,10 @@
 import logging
 import re
-from typing import Callable, MutableSequence, Optional, TypeVar
+import warnings
+from collections.abc import MutableSequence
+from typing import Callable, Optional, TypeVar
 
-from .frozendict import frozendict  # noqa: F401 (expose)
+from .frozendict import frozendict  # (expose)
 from .internal.configuration import Configuration
 from .internal.load_file import read_configuration_file
 
@@ -160,4 +162,4 @@ def __alpha_configuration():
 
 # Initialize configuration
 __alpha_configuration()
-__all__ = ["get", "setup_configuration", "frozendict"]
+__all__ = ["get", "setup_configuration", "frozendict", "warnings"]

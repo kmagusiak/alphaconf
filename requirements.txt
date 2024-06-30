@@ -2,10 +2,9 @@
 setuptools
 setuptools_scm
 black>=22
-flake8>=7
-isort>=5
 mypy
-pytest
+ruff>=0.5
+pytest>=8
 types-toml
 
 # Libraries

@@ -1,7 +1,8 @@
-import sys
-import logging
 import argparse
-from typing import Any, Callable, Optional, Sequence, TypeVar, Union
+import logging
+import sys
+from collections.abc import Sequence
+from typing import Callable, Optional, TypeVar, Union
 
 from omegaconf import MissingMandatoryValue, OmegaConf
 
@@ -9,7 +10,7 @@ from . import initialize, setup_configuration
 from .internal.load_file import read_configuration_file
 
 T = TypeVar('T')
-__all__ = ["run", "Application"]
+__all__ = ["run"]
 log = logging.getLogger(__name__)
 
 
@@ -27,7 +28,7 @@ class SelectConfigAction(ConfigAction):
     def __call__(self, parser, namespace, values, option_string=None):
         key, value = values.split('=')  # XXX _split(value)
         value = value or 'default'
-        arg = "{key}=${{oc.select:base.{key}.{value}}}".format(key=key, value=value)
+        arg = f"{key}=${{oc.select:base.{key}.{value}}}"
         return super().__call__(parser, namespace, [arg], option_string)
 
 
@@ -98,7 +99,7 @@ def run(
     :param config: Arguments passed to Application.__init__() and Application.setup_configuration()
     :return: The result of main
     """
-    from . import get, _global_configuration
+    from . import _global_configuration, get
 
     arg_parser = parser_create(main, **config, exit_on_error=should_exit)
     try:
