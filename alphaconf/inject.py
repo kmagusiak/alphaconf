@@ -33,7 +33,7 @@ class ParamDefaultsFunction:
     def wrap(func) -> "ParamDefaultsFunction":
         if isinstance(func, ParamDefaultsFunction):
             return func
-        return functools.wraps(func)(ParamDefaultsFunction(func))
+        return ParamDefaultsFunction(func)
 
 
 def getter(
@@ -71,7 +71,7 @@ def inject(name: str, factory: Union[None, str, Callable[[], Any]]):
         else:
             b = factory
         f.bind(name, b)
-        return f
+        return functools.wraps(func)(f)
 
     return do_inject
 
@@ -87,6 +87,6 @@ def inject_auto(*, prefix: str = "", ignore: set = set()):
             if name in ignore:
                 continue
             f.bind(name, getter(prefix + name, param=param))
-        return f
+        return functools.wraps(func)(f)
 
     return do_inject
