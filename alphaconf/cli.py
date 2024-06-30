@@ -1,5 +1,6 @@
 import sys
-from typing import Callable, Optional, Sequence, TypeVar, Union
+from collections.abc import Sequence
+from typing import Callable, Optional, TypeVar, Union
 
 from omegaconf import MissingMandatoryValue, OmegaConf
 

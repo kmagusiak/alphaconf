@@ -40,7 +40,7 @@ def test_log_exception(log, caplog):
         log.error('err', exc_info=True)
     rec = caplog.records[0]
     exc_type, exc, tb = rec.exc_info
-    assert exc_type == ValueError and str(exc) == 'tvalue' and tb
+    assert exc_type is ValueError and str(exc) == 'tvalue' and tb
 
 
 def test_log_format(log, caplog):

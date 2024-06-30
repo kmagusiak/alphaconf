@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Union
 
 import invoke
 from omegaconf import OmegaConf
@@ -52,13 +52,13 @@ class InvokeApplication(application.Application):
         return prog.run(argv)
 
 
-def collection(variables: Dict = {}) -> invoke.Collection:
+def collection(variables: dict = {}) -> invoke.Collection:
     """Create a new collection base on tasks in the variables"""
     return invoke.Collection(*[v for v in variables.values() if isinstance(v, invoke.Task)])
 
 
 def run(
-    __name__: str, namespace: Union[invoke.collection.Collection, Dict], **properties
+    __name__: str, namespace: Union[invoke.collection.Collection, dict], **properties
 ) -> InvokeApplication:
     """Create an invoke application and run it if __name__ is __main__"""
     if isinstance(namespace, invoke.Collection):

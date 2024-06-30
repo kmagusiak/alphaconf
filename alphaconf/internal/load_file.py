@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Tuple
+from typing import Any
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -11,7 +11,7 @@ try:
     class TomlDecoderPrimitive(toml.TomlDecoder):
         """toml loader which reads dates as strings for compitability with JSON"""
 
-        def load_value(self, v: str, strictly_valid: bool = True) -> Tuple[Any, str]:
+        def load_value(self, v: str, strictly_valid: bool = True) -> tuple[Any, str]:
             value, itype = super().load_value(v, strictly_valid)
             # convert date, datetime, time using isoformat()
             if itype in ('date', 'time'):

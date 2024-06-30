@@ -100,7 +100,7 @@ class DynamicLogRecord(logging.LogRecord):
     def getMessage(self) -> str:  # noqa: N802
         msg = super().getMessage()
         if self.context:
-            msg = "%s %s" % (self.context, msg)
+            msg = f"{self.context} {msg}"
         return msg
 
     def getRawMessage(self) -> str:  # noqa: N802
