@@ -1,5 +1,4 @@
 import logging
-from typing import List
 
 from . import set_application
 from .internal.application import Application
@@ -11,7 +10,7 @@ __all__ = ['mount', 'read_configuration_file', 'load_configuration_file']
 application = Application(name="interactive")
 
 
-def mount(configuration_paths: List[str] = [], setup_logging: bool = True):
+def mount(configuration_paths: list[str] = [], setup_logging: bool = True):
     """Mount the interactive application and setup configuration"""
     application.setup_configuration(configuration_paths=configuration_paths)
     set_application(application)

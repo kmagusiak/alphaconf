@@ -1,6 +1,6 @@
 import functools
 import inspect
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 import alphaconf
 
@@ -12,7 +12,7 @@ __all__ = ["inject", "inject_auto"]
 class ParamDefaultsFunction:
     """Function wrapper that injects default parameters"""
 
-    _arg_factory: Dict[str, Callable[[], Any]]
+    _arg_factory: dict[str, Callable[[], Any]]
 
     def __init__(self, func: Callable):
         self.func = func

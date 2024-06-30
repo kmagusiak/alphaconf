@@ -1,10 +1,11 @@
 import itertools
-from typing import Dict, Iterable, List, Mapping, Optional, Tuple, Type, Union, cast
+from collections.abc import Iterable, Mapping
+from typing import Optional, Union, cast
 
 from omegaconf import DictConfig, OmegaConf
 
 
-def _split(value: str, char: str = "=") -> Tuple[str, Optional[str]]:
+def _split(value: str, char: str = "=") -> tuple[str, Optional[str]]:
     vs = value.split(char, 1)
     if len(vs) < 2:
         return vs[0], None
@@ -127,8 +128,8 @@ class ParseResult:
     """The result of argument parsing"""
 
     result: Optional[Action]
-    rest: List[str]
-    _config: List[Union[str, DictConfig]]
+    rest: list[str]
+    _config: list[Union[str, DictConfig]]
 
     def __init__(self) -> None:
         """Initialize the result"""
@@ -136,7 +137,7 @@ class ParseResult:
         self.rest = []
         self._config = []
 
-    def _add_config(self, value: Union[List[str], DictConfig, Dict, str]):
+    def _add_config(self, value: Union[list[str], DictConfig, dict, str]):
         """Add a configuration item"""
         if isinstance(value, list):
             self._config.extend(value)
@@ -169,8 +170,8 @@ class ParseResult:
 class ArgumentParser:
     """Parses arguments for alphaconf"""
 
-    _opt_actions: Dict[str, Action]
-    _pos_actions: List[Action]
+    _opt_actions: dict[str, Action]
+    _pos_actions: list[Action]
     help_messages: Mapping[str, str]
 
     def __init__(self, help_messages: Mapping[str, str] = {}) -> None:
@@ -178,7 +179,7 @@ class ArgumentParser:
         self._pos_actions = []
         self.help_messages = help_messages or {}
 
-    def parse_args(self, arguments: List[str]) -> ParseResult:
+    def parse_args(self, arguments: list[str]) -> ParseResult:
         """Parse the argument"""
         result = ParseResult()
         arguments = list(arguments)
@@ -229,7 +230,7 @@ class ArgumentParser:
         result.rest += arguments
         return result
 
-    def add_argument(self, action_class: Type[Action], *names: str, **kw):
+    def add_argument(self, action_class: type[Action], *names: str, **kw):
         """Add an argument handler
 
         :param action_class: Action(kw) will be added as a handler

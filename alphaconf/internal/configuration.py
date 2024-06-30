@@ -1,15 +1,11 @@
 import copy
 import os
 import warnings
+from collections.abc import Iterable, MutableMapping
 from enum import Enum
 from typing import (
     Any,
-    Dict,
-    Iterable,
-    List,
-    MutableMapping,
     Optional,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -33,9 +29,9 @@ _cla_type = type
 
 class Configuration:
     c: DictConfig
-    __type_path: MutableMapping[Type, Optional[str]]
-    __type_value: MutableMapping[Type, Any]
-    helpers: Dict[str, str]
+    __type_path: MutableMapping[type, Optional[str]]
+    __type_value: MutableMapping[type, Any]
+    helpers: dict[str, str]
 
     def __init__(self, *, parent: Optional["Configuration"] = None) -> None:
         if parent:
@@ -52,7 +48,7 @@ class Configuration:
     def get(
         self,
         key: str,
-        type: Type[T],
+        type: type[T],
         *,
         default: Union[T, RaiseOnMissingType] = raise_on_missing,
     ) -> T: ...
@@ -69,13 +65,13 @@ class Configuration:
     @overload
     def get(
         self,
-        key: Type[T],
+        key: type[T],
         type: None = None,
         *,
         default: Union[T, RaiseOnMissingType] = raise_on_missing,
     ) -> T: ...
 
-    def get(self, key: Union[str, Type], type=None, *, default=raise_on_missing):
+    def get(self, key: Union[str, type], type=None, *, default=raise_on_missing):
         """Get a configuation value and cast to the correct type"""
         if isinstance(key, _cla_type):
             return self.__get_type(key, default=default)
@@ -99,7 +95,7 @@ class Configuration:
             value = convert_to_type(value, type)
         return value
 
-    def __get_type(self, key: Type, *, default=raise_on_missing):
+    def __get_type(self, key: type, *, default=raise_on_missing):
         value = self.__type_value.get(key)
         if value is not None:
             return value
@@ -124,7 +120,7 @@ class Configuration:
     def setup_configuration(
         self,
         conf: Union[DictConfig, dict, Any],
-        helpers: Dict[str, str] = {},
+        helpers: dict[str, str] = {},
         *,
         prefix: str = "",
     ):
@@ -193,7 +189,7 @@ class Configuration:
         return conf
 
     @staticmethod
-    def _find_name(parts: List[str], conf: DictConfig) -> str:
+    def _find_name(parts: list[str], conf: DictConfig) -> str:
         """Find a name from parts, by trying joining with '.' (default) or '_'"""
         if len(parts) < 2:
             return "".join(parts)

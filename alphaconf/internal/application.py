@@ -3,7 +3,8 @@ import logging
 import os
 import sys
 import uuid
-from typing import Callable, Iterable, List, MutableMapping, Optional, Tuple, Union, cast
+from collections.abc import Iterable, MutableMapping
+from typing import Callable, Optional, Union, cast
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -133,7 +134,7 @@ class Application:
             self.log.debug('Load configuration from %s', path)
             yield load_file.read_configuration_file(path)
         # Environment
-        prefixes: Optional[Tuple[str, ...]]
+        prefixes: Optional[tuple[str, ...]]
         if env_prefixes is True:
             self.log.debug('Detecting accepted env prefixes')
             default_keys = {str(k) for k in default_configuration}
@@ -155,7 +156,7 @@ class Application:
     def setup_configuration(
         self,
         *,
-        arguments: List[str] = [],
+        arguments: list[str] = [],
         configuration_paths: Iterable[str] = [],
         load_dotenv: Optional[bool] = None,
         env_prefixes: Union[bool, Iterable[str]] = True,
@@ -198,7 +199,7 @@ class Application:
         *,
         mask_base: bool = True,
         mask_secrets: bool = True,
-        mask_keys: List[str] = ['application.uuid'],
+        mask_keys: list[str] = ['application.uuid'],
     ) -> dict:
         """Get the configuration as dict with masked items
 
