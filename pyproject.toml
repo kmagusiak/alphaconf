@@ -13,7 +13,7 @@ description = "Write simple scripts leveraging omegaconf"
 readme = "README.md"
 keywords = ["configuration", "omegaconf", "pydantic", "script"]
 license = {text = "BSD License"}
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     # https://pypi.org/pypi?%3Aaction=list_classifiers
     "Programming Language :: Python :: 3",
