@@ -91,7 +91,7 @@ class ConfigurationAction(Action):
 
     def check_argument(self, value):
         if self.metavar and '=' in self.metavar and '=' not in value:
-            return 'Argument should be in format %s' % self.metavar
+            return f'Argument should be in format {self.metavar}'
         return super().check_argument(value)
 
     def handle(self, result, value):

@@ -55,8 +55,7 @@ class Configuration:
         type: Type[T],
         *,
         default: Union[T, RaiseOnMissingType] = raise_on_missing,
-    ) -> T:
-        ...
+    ) -> T: ...
 
     @overload
     def get(
@@ -65,8 +64,7 @@ class Configuration:
         type: Union[str, None] = None,
         *,
         default: Any = raise_on_missing,
-    ) -> Any:
-        ...
+    ) -> Any: ...
 
     @overload
     def get(
@@ -75,8 +73,7 @@ class Configuration:
         type: None = None,
         *,
         default: Union[T, RaiseOnMissingType] = raise_on_missing,
-    ) -> T:
-        ...
+    ) -> T: ...
 
     def get(self, key: Union[str, Type], type=None, *, default=raise_on_missing):
         """Get a configuation value and cast to the correct type"""

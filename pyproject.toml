@@ -54,6 +54,8 @@ local_scheme = "no-local-version"
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
 # https://beta.ruff.rs/docs/rules/
 select = [
     #"C9",  # mccabe
@@ -77,5 +79,5 @@ ignore = [
     "SIM108",  # simplify ITE by operator
 ]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 10
