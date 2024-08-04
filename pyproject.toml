@@ -38,6 +38,7 @@ invoke = ["invoke"]
 pydantic = ["pydantic>=2"]
 toml = ["toml"]
 pinned = [
+    "pydantic==2.7.4",
     "toml==0.10.2",
 ]
 dev = [
