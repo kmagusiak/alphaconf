@@ -202,7 +202,7 @@ class Configuration:
                 sub_conf = conf.get(name)
                 if next_offset == len(parts):
                     return name
-                elif isinstance(sub_conf, DictConfig):
+                if isinstance(sub_conf, DictConfig):
                     return name + "." + Configuration._find_name(parts[next_offset:], sub_conf)
                 return ".".join([name, *parts[next_offset:]])
         return ".".join(parts)

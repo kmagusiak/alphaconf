@@ -42,7 +42,7 @@ class Application:
         self.argument_parser = self._build_argument_parser()
 
     def _build_argument_parser(self) -> arg_parser.ArgumentParser:
-        from .. import _global_configuration
+        from .. import _global_configuration  # noqa: TID252
 
         p = arg_parser.ArgumentParser(_global_configuration.helpers)
         arg_parser.configure_parser(p, app=self)
@@ -162,7 +162,7 @@ class Application:
         env_prefixes: Union[bool, Iterable[str]] = True,
         resolve_configuration: bool = True,
     ):
-        from .. import _global_configuration as ctx_configuration
+        from .. import _global_configuration as ctx_configuration  # noqa: TID252
         from .dotenv_vars import try_dotenv
 
         try_dotenv(load_dotenv=load_dotenv)
@@ -208,7 +208,7 @@ class Application:
         :param mask_keys: Which keys to mask
         :return: Configuration copy with masked values
         """
-        from .. import SECRET_MASKS
+        from .. import SECRET_MASKS  # noqa: TID252
 
         config = cast(dict, OmegaConf.to_container(self.configuration.c))
         if mask_secrets:

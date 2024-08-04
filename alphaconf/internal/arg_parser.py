@@ -142,7 +142,7 @@ class ParseResult:
         if isinstance(value, list):
             self._config.extend(value)
             return
-        elif isinstance(value, DictConfig):
+        if isinstance(value, DictConfig):
             pass
         elif isinstance(value, dict):
             value = OmegaConf.create(value)
