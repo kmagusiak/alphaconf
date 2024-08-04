@@ -38,12 +38,15 @@ invoke = ["invoke"]
 pydantic = ["pydantic>=2"]
 toml = ["toml"]
 pinned = [
+    "omegaconf==2.3.0",
     "pydantic==2.7.4",
+    "pyyaml~=6.0",
     "toml==0.10.2",
 ]
 dev = [
     "mypy~=1.11",
     "ruff==0.5.6",
+    "types-pyyaml~=6.0",
     "types-toml==0.10.2",
 ]
 test = [

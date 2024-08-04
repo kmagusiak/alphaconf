@@ -21,12 +21,12 @@ jobs:
         python -m pip install -e .[pinned,dev]
     - name: Run pre-commit checks
       run: |
-        ./pre-commit lint
+        ./pre-commit
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # lowest, common (defaut ubuntu LTS), newest
+        # lowest, common (default ubuntu LTS), newest
         python-version: ["3.9", "3.12"]
     steps:
     - uses: actions/checkout@v4
