@@ -38,6 +38,7 @@ invoke = ["invoke"]
 pydantic = ["pydantic>=2"]
 toml = ["toml"]
 pinned = [
+    "invoke==2.2.0",
     "omegaconf==2.3.0",
     "pydantic==2.7.4",
     "pyyaml~=6.0",
