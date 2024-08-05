@@ -47,7 +47,7 @@ dev = [
     "mypy~=1.11",
     "ruff==0.5.6",
     "types-pyyaml~=6.0",
-    "types-toml==0.10.2",
+    "types-toml>=0.10.8",
 ]
 test = [
     "pytest==8.3.2",
