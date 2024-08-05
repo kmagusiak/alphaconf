@@ -5,28 +5,39 @@ cd "$(dirname "$0")"
 [ -d .git ] || cd ../..
 [ -d .git ]
 
-pre_commit() {
-	ruff check .
-	black --check .
+check() {
+	echo " ruff:"
+	ruff check
+	ruff format --check
+}
+
+lint() {
+	check
+	echo " mypy:"
 	mypy .
 }
 
-fix_all() {
-	black .
+fix() {
 	ruff check --fix-only .
 }
+
 format() {
-	black .
+	ruff format
 }
 
 # Commands
 case "${1:-run}" in
-	run|lint)
-		pre_commit
-		echo "All good to commit"
+	run|check)
+		check
+		echo " all good to commit."
+		;;
+	lint)
+		lint
 		;;
 	fix)
-		fix_all
+		echo "Fix all..."
+		fix
+		format
 		;;
 	format)
 		format
@@ -42,5 +53,5 @@ case "${1:-run}" in
 		;;
 	*)
 		echo "Invalid argument: $*"
-		echo "Supported options: lint, format, install, uninstall"
+		echo "Supported options: lint, fix, format, install, uninstall"
 esac

@@ -35,7 +35,7 @@ def read_configuration_file(path: str) -> DictConfig:
     """
     if path.endswith('.toml') and toml:
         config = toml.load(path, decoder=TomlDecoderPrimitive())
-        return OmegaConf.create(config)
+        return OmegaConf.create(dict(config))
     conf = OmegaConf.load(path)
     if not isinstance(conf, DictConfig):
         conf = OmegaConf.create({'config': conf})
